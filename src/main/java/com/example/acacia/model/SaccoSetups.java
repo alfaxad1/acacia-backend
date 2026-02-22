@@ -32,6 +32,10 @@ public class SaccoSetups {
 
     private BigDecimal latePaymentFineAmount;
 
+    private BigDecimal meetingAbsentFineAmount;
+
+    private BigDecimal meetingLateFineAmount;
+
     private BigDecimal loanInterestRate;
 
     private BigDecimal loanPenaltyRate;

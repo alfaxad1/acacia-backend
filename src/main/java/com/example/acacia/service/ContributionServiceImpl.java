@@ -2,9 +2,11 @@ package com.example.acacia.service;
 
 import com.example.acacia.Exception.ResourceNotFoundException;
 import com.example.acacia.dto.ContributionRequest;
+import com.example.acacia.dto.ContributionResponseDTO;
 import com.example.acacia.enums.*;
 import com.example.acacia.model.*;
 import com.example.acacia.repository.*;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -205,5 +207,21 @@ public class ContributionServiceImpl implements ContributionService {
         }
     }
 
+    public List<ContributionResponseDTO> getAllContributions() {
+        return contributionRepository.findAllFlattened();
+    }
+
+    public ContributionResponseDTO getContributionById(Long id) {
+        return contributionRepository.findById(id)
+                .map(c -> new ContributionResponseDTO(
+                        c.getId(),
+                        c.getMember().getFullName(),
+                        c.getPeriod().getDate(),
+                        c.getAmount(),
+                        c.getPaymentDate(),
+                        c.isLate()
+                ))
+                .orElseThrow(() -> new EntityNotFoundException("Contribution not found"));
+    }
 
 }

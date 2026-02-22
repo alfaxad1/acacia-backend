@@ -1,6 +1,7 @@
 package com.example.acacia.contoller;
 
 import com.example.acacia.dto.ContributionRequest;
+import com.example.acacia.dto.ContributionResponseDTO;
 import com.example.acacia.service.ContributionPenaltyJobService;
 import com.example.acacia.service.ContributionService;
 import com.example.acacia.utility.ResponseHandler;
@@ -8,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @CrossOrigin
@@ -21,6 +24,11 @@ public class ContributionController {
     ResponseEntity<?> recordContribution(@RequestBody ContributionRequest request) {
         contributionService.addContribution(request);
         return ResponseHandler.responseBuilder("contribution recorded successfully", HttpStatus.CREATED, null);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ContributionResponseDTO>> getAll() {
+        return ResponseEntity.ok(contributionService.getAllContributions());
     }
 
 //    @GetMapping

@@ -32,7 +32,7 @@ public class Fine{
     private FineTyp type;
 
     @Enumerated(EnumType.STRING)
-    private FineStatus status;
+    private FineStatus status = FineStatus.UNPAID;
 
     // Can reference loan_id or contribution_id
     private Long referenceId;
@@ -40,4 +40,5 @@ public class Fine{
     private BigDecimal amount;
     private LocalDate fineDate;
     private boolean isPaid = false;
+    private LocalDate paidDate;
 }

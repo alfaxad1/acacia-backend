@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface MemberRepository extends JpaRepository<Member,Long> {
@@ -28,4 +29,7 @@ public interface MemberRepository extends JpaRepository<Member,Long> {
 
     @Query("select count(m) from Member m where m.status = :status")
     long countActive(MemberStatus status);
+
+    Optional<Member> findByEmail(String email);
+
 }

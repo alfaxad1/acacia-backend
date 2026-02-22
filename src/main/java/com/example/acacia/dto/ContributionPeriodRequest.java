@@ -6,5 +6,5 @@ import java.time.LocalDate;
 
 @Data
 public class ContributionPeriodRequest {
-    private LocalDate day;
+    private LocalDate date;
 }

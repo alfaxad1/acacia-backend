@@ -1,6 +1,7 @@
 package com.example.acacia.service;
 
 import com.example.acacia.Exception.ResourceNotFoundException;
+import com.example.acacia.dto.LoanDto;
 import com.example.acacia.dto.LoanEligibilityResult;
 import com.example.acacia.enums.ExtraStatus;
 import com.example.acacia.enums.ExtraType;
@@ -8,6 +9,7 @@ import com.example.acacia.enums.LoanStatus;
 import com.example.acacia.enums.SetupStatus;
 import com.example.acacia.model.*;
 import com.example.acacia.repository.*;
+import jakarta.persistence.Tuple;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,6 +19,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -226,4 +229,31 @@ public class LoanService {
         loanRepository.save(loan);
     }
 
+    public List<LoanDto> getLoans(LoanStatus loanStatus) {
+        try {
+            List<LoanDto> dtoList = new ArrayList<>();
+            List<Tuple> loans = loanRepository.getActiveLoans(loanStatus);
+            for (Tuple loan : loans) {
+                LoanDto dto = LoanDto.builder()
+                        .id(loan.get(0, Long.class))
+                        .memberName(loan.get(1, String.class))
+                        .requestedAmount(loan.get(2, BigDecimal.class))
+                        .approvedAmount(loan.get(3, BigDecimal.class))
+                        .paidAmount(loan.get(4, BigDecimal.class))
+                        .dueDate(loan.get(5, LocalDate.class))
+                        .interestAmount(loan.get(6, BigDecimal.class))
+                        .status(loan.get(7, LoanStatus.class))
+                        .duration(loan.get(8, Integer.class))
+                        .requestDate(loan.get(9, LocalDate.class))
+                        .approvedDate(loan.get(10, LocalDate.class))
+                        .memberNo(loan.get(11, String.class))
+                        .memberId(loan.get(12, Long.class))
+                        .build();
+                dtoList.add(dto);
+            }
+            return dtoList;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

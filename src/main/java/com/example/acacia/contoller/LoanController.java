@@ -1,5 +1,7 @@
 package com.example.acacia.contoller;
 
+import com.example.acacia.dto.LoanDto;
+import com.example.acacia.enums.LoanStatus;
 import com.example.acacia.enums.VoteDecision;
 import com.example.acacia.model.Loan;
 import com.example.acacia.service.LoanService;
@@ -11,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -18,6 +21,11 @@ import java.math.BigDecimal;
 public class LoanController {
     private final LoanService loanService;
     private final LoanVotingService loanVotingService;
+
+    @GetMapping()
+    public ResponseEntity<List<LoanDto>> getLoans(@RequestParam LoanStatus loanStatus) {
+        return ResponseEntity.ok(loanService.getLoans(loanStatus));
+    }
 
     @PostMapping("/request")
     public ResponseEntity<?> requestLoan(
@@ -31,10 +39,10 @@ public class LoanController {
     @PostMapping("/{loanId}/vote")
     public ResponseEntity<?> vote(
             @PathVariable Long loanId,
-            @RequestParam Long committeeMemberId,
+            @RequestParam Long memberId,
             @RequestParam VoteDecision decision
     ) {
-        loanVotingService.vote(loanId, committeeMemberId, decision);
+        loanVotingService.vote(loanId, memberId, decision);
         return ResponseEntity.ok("Vote recorded");
     }
 

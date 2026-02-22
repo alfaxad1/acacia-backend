@@ -1,5 +1,6 @@
 package com.example.acacia.repository;
 
+import com.example.acacia.dto.ContributionResponseDTO;
 import com.example.acacia.model.Contribution;
 import com.example.acacia.model.ContributionPeriod;
 import com.example.acacia.model.Member;
@@ -34,8 +35,7 @@ public interface ContributionRepository extends JpaRepository<Contribution,Long>
             value = """
         SELECT COUNT(*)
         FROM contributions c
-        WHERE c.status = 'PAID'
-          AND YEARWEEK(c.payment_date, 1) = YEARWEEK(CURDATE(), 1)
+          WHERE YEARWEEK(c.payment_date, 1) = YEARWEEK(CURDATE(), 1)
     """,
             nativeQuery = true
     )
@@ -48,4 +48,16 @@ public interface ContributionRepository extends JpaRepository<Contribution,Long>
     List<Contribution> findByMonth(
             @Param("start") LocalDate start,
             @Param("end") LocalDate end
-    );}
+    );
+
+    @Query("SELECT new com.example.acacia.dto.ContributionResponseDTO(" +
+            "c.id, m.fullName, p.date, c.amount, c.paymentDate, c.isLate) " +
+            "FROM Contribution c " +
+            "JOIN c.member m " +
+            "JOIN c.period p")
+    List<ContributionResponseDTO> findAllFlattened();
+
+    List<Contribution> findByPeriodIn(List<ContributionPeriod> periods);
+}
+
+

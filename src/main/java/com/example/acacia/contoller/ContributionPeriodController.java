@@ -1,7 +1,7 @@
 package com.example.acacia.contoller;
 
+import com.example.acacia.dto.ContributionPeriodDto;
 import com.example.acacia.dto.ContributionPeriodRequest;
-import com.example.acacia.model.ContributionPeriod;
 import com.example.acacia.service.ContributionPeriodService;
 import com.example.acacia.utility.ResponseHandler;
 import lombok.RequiredArgsConstructor;
@@ -20,15 +20,15 @@ public class ContributionPeriodController {
     private final ContributionPeriodService contributionPeriodService;
 
     @GetMapping
-    public ResponseEntity<List<ContributionPeriod>> findAll() {
-        return ResponseEntity.ok().body(contributionPeriodService.getContributionPeriods());
+    public ResponseEntity<List<ContributionPeriodDto>> getAllContributionPeriods() {
+        List<ContributionPeriodDto> periods = contributionPeriodService.getContributionPeriods();
+        return ResponseEntity.ok(periods);
     }
 
     @PostMapping()
     public ResponseEntity<?> save(@RequestBody ContributionPeriodRequest request) {
-        contributionPeriodService.addPeriod(request.getDay());
+        contributionPeriodService.addPeriod(request.getDate());
         return ResponseHandler.responseBuilder("period added successfully", HttpStatus.CREATED, null);
     }
-
 
 }
