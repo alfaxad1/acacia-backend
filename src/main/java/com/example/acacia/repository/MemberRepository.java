@@ -32,4 +32,5 @@ public interface MemberRepository extends JpaRepository<Member,Long> {
 
     Optional<Member> findByEmail(String email);
 
+    List<Member> findByIdNotIn(List<Long> ids);
 }

@@ -62,6 +62,7 @@ public class ContributionPeriodServiceImpl implements ContributionPeriodService 
             List<ContributionDto> contributionDtos = contributionsForThisPeriod.stream()
                     .map(c -> ContributionDto.builder()
                             .id(c.getId())
+                            .memberName(c.getMember().getFullName())
                             .amount(c.getAmount())
                             .paymentDate(c.getPaymentDate())
                             .isLate(c.isLate())

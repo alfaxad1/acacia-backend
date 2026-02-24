@@ -3,15 +3,15 @@ package com.example.acacia.service;
 import com.example.acacia.Exception.ResourceNotFoundException;
 import com.example.acacia.dto.LoanDto;
 import com.example.acacia.dto.LoanEligibilityResult;
-import com.example.acacia.enums.ExtraStatus;
-import com.example.acacia.enums.ExtraType;
-import com.example.acacia.enums.LoanStatus;
-import com.example.acacia.enums.SetupStatus;
+import com.example.acacia.enums.*;
 import com.example.acacia.model.*;
 import com.example.acacia.repository.*;
 import jakarta.persistence.Tuple;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -24,8 +24,10 @@ import java.util.List;
 import java.util.Objects;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class LoanService {
+    private static final Logger log = LoggerFactory.getLogger(LoanService.class);
     private final MemberRepository memberRepository;
     private final ContributionRepository contributionRepository;
     private final LoanEligibilityService eligibilityService;
@@ -38,6 +40,7 @@ public class LoanService {
     private final EquityService equityService;
     private final CreditScoreService creditScoreService;
     private final SaccoSetupRepository saccoSetupRepository;
+    private final EmailService emailService;
 
     @Transactional
     public void requestLoan(
@@ -68,6 +71,21 @@ public class LoanService {
         loan.setRequestDate(LocalDate.now());
 
         loanRepository.save(loan);
+
+        String subject = "LOAN REQUEST BY " + member.getFullName().toUpperCase();
+        String content = member.getFullName() + " is requesting for a loan of Ksh." +  requestedAmount + ". Please login into the system and place your vote";
+        log.info("User email: {} ", member.getEmail());
+
+        List<Member> members = memberRepository.findAllByStatus(MemberStatus.ACTIVE);
+
+        for (Member member1 : members) {
+            try {
+                emailService.sendMail(member1.getEmail(), subject, content);
+            } catch (Exception e) {
+                log.error("Failed to send mail for member {} Error: {}", member1.getEmail(), e.getMessage());
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Transactional

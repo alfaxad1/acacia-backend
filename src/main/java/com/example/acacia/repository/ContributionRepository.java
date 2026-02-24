@@ -11,7 +11,6 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.List;
 
 @Repository
@@ -58,6 +57,9 @@ public interface ContributionRepository extends JpaRepository<Contribution,Long>
     List<ContributionResponseDTO> findAllFlattened();
 
     List<Contribution> findByPeriodIn(List<ContributionPeriod> periods);
+
+    @Query("SELECT c.member.id FROM Contribution c WHERE c.paymentDate = :contributionDate")
+    List<Long> findPaidMemberIds(@Param("contributionDate") LocalDate contributionDate);
 }
 
 
