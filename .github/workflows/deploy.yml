@@ -30,8 +30,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            sudo systemctl stop acacia.service || true
-            sudo rm -f /home/admin/acacia.co.ke/acacia-0.0.1-SNAPSHOT.jar
+            echo "${{ secrets.VPS_PASSWORD }}" | sudo -S systemctl stop acacia.service || true
+            echo "${{ secrets.VPS_PASSWORD }}" | sudo -S rm -f /home/admin/acacia.co.ke/acacia-0.0.1-SNAPSHOT.jar
 
       # 2. UPLOAD the new jar
       - name: Copy JAR to VPS
