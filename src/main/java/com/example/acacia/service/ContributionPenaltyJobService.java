@@ -32,12 +32,6 @@ public class ContributionPenaltyJobService {
 
         SaccoSetups setup = saccoSetupRepository.findByStatus(SetupStatus.ACTIVE);
 
-        //find the latest period
-//        ContributionPeriod currentPeriod =
-//                periodRepository.findByDate(
-//                        LocalDate.now().minusDays(setup.getDaysToDeadline())
-//                );
-
         ContributionPeriod currentPeriod = periodRepository.findAll().getLast();
 
         if (currentPeriod == null) return;

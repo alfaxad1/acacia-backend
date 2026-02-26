@@ -1,19 +1,23 @@
 package com.example.acacia.service;
 
 import com.example.acacia.Exception.ResourceNotFoundException;
-import com.example.acacia.dto.ContributionRequest;
-import com.example.acacia.dto.ContributionResponseDTO;
+import com.example.acacia.dto.*;
 import com.example.acacia.enums.*;
 import com.example.acacia.model.*;
 import com.example.acacia.repository.*;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.Tuple;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +30,7 @@ public class ContributionServiceImpl implements ContributionService {
     private final ContributionRepository contributionRepository;
     private final EquityService equityService;
     private final CreditScoreService creditScoreService;
+    private final ContributionArrearRepository contributionArrearRepository;
 
     @Override
     @Transactional
@@ -68,7 +73,6 @@ public class ContributionServiceImpl implements ContributionService {
                 fine.setStatus(FineStatus.PAID);
                 fineRepository.save(fine);
             }
-            // Contribution can clear this fine partially
             else {
                 fine.setAmount(fineAmount.subtract(amountToRecord));
                 amountToRecord = BigDecimal.ZERO;
@@ -76,23 +80,26 @@ public class ContributionServiceImpl implements ContributionService {
             }
         }
 
+        // settle any arrear
+
+
     /* =========================================================
        3. CHECK IF CONTRIBUTION IS LATE
        ========================================================= */
         boolean isLate = contribution.getPaymentDate()
                 .isAfter(period.getDeadline());
 
-//        if (isLate) {
-//            Fine lateFine = Fine.builder()
-//                    .member(member)
-//                    .amount(setups.getLatePaymentFineAmount())
-//                    .status(FineStatus.UNPAID)
-//                    .type(FineTyp.LATE_PAYMENT)
-//                    .fineDate(LocalDate.now())
-//                    .referenceId(period.getId())
-//                    .build();
-//            fineRepository.save(lateFine);
-//        }
+        if (isLate) {
+            Fine lateFine = Fine.builder()
+                    .member(member)
+                    .amount(setups.getLatePaymentFineAmount())
+                    .status(FineStatus.UNPAID)
+                    .type(FineTyp.LATE_PAYMENT)
+                    .fineDate(LocalDate.now())
+                    .referenceId(period.getId())
+                    .build();
+            fineRepository.save(lateFine);
+        }
 
     /* =========================================================
        4. RECORD CONTRIBUTION / SURPLUS / ARREARS
@@ -207,8 +214,8 @@ public class ContributionServiceImpl implements ContributionService {
         }
     }
 
-    public List<ContributionResponseDTO> getAllContributions() {
-        return contributionRepository.findAllFlattened();
+    public List<ContributionResponseDTO> getAllContributions(Pageable pageable) {
+        return contributionRepository.findAllFlattened(pageable);
     }
 
     public ContributionResponseDTO getContributionById(Long id) {
@@ -222,6 +229,40 @@ public class ContributionServiceImpl implements ContributionService {
                         c.isLate()
                 ))
                 .orElseThrow(() -> new EntityNotFoundException("Contribution not found"));
+    }
+
+    @Override
+    public Response<List<ContributionArrearDto>> getArrears(Pageable pageable) {
+        try {
+            Page<Tuple> arrearsPage = contributionArrearRepository.findArrears(pageable);
+
+            List<ContributionArrearDto> dtoList = arrearsPage.getContent().stream()
+                    .map(tuple -> ContributionArrearDto.builder()
+                            .id(tuple.get(0, Long.class))
+                            .arrearAmount(tuple.get(1, BigDecimal.class))
+                            .memberName(tuple.get(2, String.class))
+                            .periodDate(tuple.get(3, LocalDate.class))
+                            .fineAmount(tuple.get(4, BigDecimal.class))
+                            .build())
+                    .collect(Collectors.toList());
+
+            MetaData metaData = MetaData.builder()
+                    .page(arrearsPage.getNumber())
+                    .totalElements(arrearsPage.getTotalElements())
+                    .totalPages(arrearsPage.getTotalPages())
+                    .limit(arrearsPage.getSize())
+                    .build();
+
+            return Response.<List<ContributionArrearDto>>builder()
+                    .status(ResponseStatusEnum.SUCCESS)
+                    .data(dtoList)
+                    .message("Contribution arrears retrieved successfully")
+                    .metaData(metaData)
+                    .build();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to fetch arrears: " + e.getMessage());
+        }
     }
 
 }

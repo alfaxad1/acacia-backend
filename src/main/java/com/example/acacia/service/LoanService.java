@@ -12,11 +12,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -247,10 +248,10 @@ public class LoanService {
         loanRepository.save(loan);
     }
 
-    public List<LoanDto> getLoans(LoanStatus loanStatus) {
+    public List<LoanDto> getLoans(LoanStatus loanStatus, Pageable pageable) {
         try {
             List<LoanDto> dtoList = new ArrayList<>();
-            List<Tuple> loans = loanRepository.getActiveLoans(loanStatus);
+            Page<Tuple> loans = loanRepository.getActiveLoans(loanStatus, pageable);
             for (Tuple loan : loans) {
                 LoanDto dto = LoanDto.builder()
                         .id(loan.get(0, Long.class))
@@ -266,6 +267,7 @@ public class LoanService {
                         .approvedDate(loan.get(10, LocalDate.class))
                         .memberNo(loan.get(11, String.class))
                         .memberId(loan.get(12, Long.class))
+                        .eligibleAmount(loan.get(13, BigDecimal.class))
                         .build();
                 dtoList.add(dto);
             }

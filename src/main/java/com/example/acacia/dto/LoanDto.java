@@ -17,6 +17,7 @@ public class LoanDto {
     private Long id;
     private String memberName;
     private BigDecimal requestedAmount;
+    private BigDecimal eligibleAmount;
     private BigDecimal approvedAmount;
     private BigDecimal paidAmount;
     private LocalDate dueDate;

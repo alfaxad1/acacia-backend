@@ -24,6 +24,7 @@ public class LoanVotingService {
     private final LoanVoteRepository voteRepository;
     private final MemberRepository committeeRepository;
     private final LoanService loanService;
+    private final EmailService emailService;
 
     @Transactional
     public void vote(
@@ -79,8 +80,10 @@ public class LoanVotingService {
 
         if (approvals >= majority) {
             loanService.approveLoan(loan.getId());
+            emailService.sendMail(loan.getMember().getEmail(), "LOAN APPROVAL", "Your loan application has been approved. Please contact the treasurer for the disbursement");
         } else if (rejections >= majority) {
             loanService.rejectLoan(loan.getId(), "Committee rejected");
+            emailService.sendMail(loan.getMember().getEmail(), "LOAN REJECTION", "Your loan application has been rejected by the members");
         }
     }
 }

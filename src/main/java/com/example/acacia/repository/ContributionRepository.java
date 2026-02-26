@@ -4,6 +4,7 @@ import com.example.acacia.dto.ContributionResponseDTO;
 import com.example.acacia.model.Contribution;
 import com.example.acacia.model.ContributionPeriod;
 import com.example.acacia.model.Member;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -54,7 +55,7 @@ public interface ContributionRepository extends JpaRepository<Contribution,Long>
             "FROM Contribution c " +
             "JOIN c.member m " +
             "JOIN c.period p")
-    List<ContributionResponseDTO> findAllFlattened();
+    List<ContributionResponseDTO> findAllFlattened(Pageable pageable);
 
     List<Contribution> findByPeriodIn(List<ContributionPeriod> periods);
 

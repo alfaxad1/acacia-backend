@@ -28,6 +28,7 @@ public class FineService {
     private final FineRepository fineRepository;
     private final SaccoSetupRepository setupRepository;
     private final MemberRepository memberRepository;
+    private final EmailService emailService;
 
     public void recordFine(FineRequest fineRequest) {
         try{
@@ -49,6 +50,9 @@ public class FineService {
                     .status(FineStatus.UNPAID)
                     .build();
             fineRepository.save(fine);
+
+            emailService.sendMail(member.getEmail(), "FINE RECORD", "A fine has been recorded for you because of "+ fineRequest.getType());
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

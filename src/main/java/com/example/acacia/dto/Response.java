@@ -10,9 +10,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class GenericResponse<D> {
+public class Response<D> {
     private ResponseStatusEnum status;
     private D data;
     private String message;
-    private ResponseMetaData metaData;
+    private MetaData metaData;
 }

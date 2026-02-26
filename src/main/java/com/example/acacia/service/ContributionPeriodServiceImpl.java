@@ -2,7 +2,9 @@ package com.example.acacia.service;
 
 import com.example.acacia.dto.ContributionDto;
 import com.example.acacia.dto.ContributionPeriodDto;
-import com.example.acacia.enums.MemberStatus;
+import com.example.acacia.dto.MetaData;
+import com.example.acacia.dto.Response;
+import com.example.acacia.enums.ResponseStatusEnum;
 import com.example.acacia.enums.SetupStatus;
 import com.example.acacia.model.Contribution;
 import com.example.acacia.model.ContributionPeriod;
@@ -12,15 +14,14 @@ import com.example.acacia.repository.ContributionRepository;
 import com.example.acacia.repository.MemberRepository;
 import com.example.acacia.repository.SaccoSetupRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.sql.Time;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -36,27 +37,16 @@ public class ContributionPeriodServiceImpl implements ContributionPeriodService 
     private final SaccoSetupRepository setupRepository;
 
     @Override
-    public List<ContributionPeriodDto> getContributionPeriods() {
+    public Response<List<ContributionPeriodDto>> getContributionPeriods(Pageable pageable) {
+        Page<ContributionPeriod> periodPage = contributionPeriodRepository.findAll(pageable);
+        List<ContributionPeriod> periods = periodPage.getContent();
 
-//        Long activeMembers = memberRepository.countActive(MemberStatus.ACTIVE);
-//        SaccoSetups saccoSetups = setupRepository.findByStatus(SetupStatus.ACTIVE);
-//        BigDecimal contributionAmount = saccoSetups.getContributionAmount();
-
-
-
-        // 1. Fetch all periods
-        List<ContributionPeriod> periods = contributionPeriodRepository.findAll();
-
-        // 2. Fetch all contributions for these periods in ONE query
-        // This assumes you add a findByPeriodIn method to your ContributionRepository
         List<Contribution> allContributions = contributionRepository.findByPeriodIn(periods);
 
-        // 3. Group contributions by Period ID for quick lookup
         Map<Long, List<Contribution>> contributionsByPeriodId = allContributions.stream()
                 .collect(Collectors.groupingBy(c -> c.getPeriod().getId()));
 
-// 2. When building the Period DTO, map those specific entities to DTOs
-        return periods.stream().map(p -> {
+        List<ContributionPeriodDto> periodDtos = periods.stream().map(p -> {
             List<Contribution> contributionsForThisPeriod = contributionsByPeriodId.getOrDefault(p.getId(), Collections.emptyList());
 
             List<ContributionDto> contributionDtos = contributionsForThisPeriod.stream()
@@ -77,6 +67,20 @@ public class ContributionPeriodServiceImpl implements ContributionPeriodService 
                     .contributions(contributionDtos)
                     .build();
         }).collect(Collectors.toList());
+
+        MetaData metaData = MetaData.builder()
+                .page(periodPage.getNumber())
+                .limit(periodPage.getSize())
+                .totalElements(periodPage.getTotalElements())
+                .totalPages(periodPage.getTotalPages())
+                .build();
+
+        return Response.<List<ContributionPeriodDto>>builder()
+                .status(ResponseStatusEnum.SUCCESS)
+                .message("Contribution periods retrieved successfully")
+                .data(periodDtos)
+                .metaData(metaData)
+                .build();
     }
 
     @Override

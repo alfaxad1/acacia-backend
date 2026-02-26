@@ -8,6 +8,9 @@ import com.example.acacia.service.LoanService;
 import com.example.acacia.service.LoanVotingService;
 import com.example.acacia.utility.ResponseHandler;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,8 +26,9 @@ public class LoanController {
     private final LoanVotingService loanVotingService;
 
     @GetMapping()
-    public ResponseEntity<List<LoanDto>> getLoans(@RequestParam LoanStatus loanStatus) {
-        return ResponseEntity.ok(loanService.getLoans(loanStatus));
+    public ResponseEntity<List<LoanDto>> getLoans(@RequestParam LoanStatus loanStatus, @RequestParam(defaultValue = "10") Integer size, @RequestParam(defaultValue = "0") Integer page) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        return ResponseEntity.ok(loanService.getLoans(loanStatus, pageable));
     }
 
     @PostMapping("/request")
