@@ -54,7 +54,7 @@ jobs:
           script: |
             # Set ownership so the service can read it
             sudo chown admin:admin /home/admin/acacia.co.ke/acacia-0.0.1-SNAPSHOT.jar
-            sudo systemctl start acacia.service
+            sudo systemctl restart acacia.service
             # Check if it actually started
             sudo systemctl is-active acacia.service
             echo "Deployment complete."
