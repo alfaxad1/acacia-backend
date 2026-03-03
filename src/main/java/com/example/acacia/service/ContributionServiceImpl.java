@@ -56,32 +56,29 @@ public class ContributionServiceImpl implements ContributionService {
             throw new IllegalArgumentException("Invalid contribution amount");
         }
 
-    /* =========================================================
-       2. SETTLE UNPAID FINES (OLDEST FIRST)
-       ========================================================= */
-        List<Fine> fines = fineRepository.findByMemberAndStatusOrderByIdAsc(member, FineStatus.UNPAID);
-
-        for (Fine fine : fines) {
-
-            if (amountToRecord.compareTo(BigDecimal.ZERO) <= 0) break;
-
-            BigDecimal fineAmount = fine.getAmount();
-
-            // Contribution can clear this fine fully
-            if (amountToRecord.compareTo(fineAmount) >= 0) {
-                amountToRecord = amountToRecord.subtract(fineAmount);
-                fine.setStatus(FineStatus.PAID);
-                fineRepository.save(fine);
-            }
-            else {
-                fine.setAmount(fineAmount.subtract(amountToRecord));
-                amountToRecord = BigDecimal.ZERO;
-                fineRepository.save(fine);
-            }
-        }
-
-        // settle any arrear
-
+//    /* =========================================================
+//       2. SETTLE UNPAID FINES (OLDEST FIRST)
+//       ========================================================= */
+//        List<Fine> fines = fineRepository.findByMemberAndStatusOrderByIdAsc(member, FineStatus.UNPAID);
+//
+//        for (Fine fine : fines) {
+//
+//            if (amountToRecord.compareTo(BigDecimal.ZERO) <= 0) break;
+//
+//            BigDecimal fineAmount = fine.getAmount();
+//
+//            // Contribution can clear this fine fully
+//            if (amountToRecord.compareTo(fineAmount) >= 0) {
+//                amountToRecord = amountToRecord.subtract(fineAmount);
+//                fine.setStatus(FineStatus.PAID);
+//                fineRepository.save(fine);
+//            }
+//            else {
+//                fine.setAmount(fineAmount.subtract(amountToRecord));
+//                amountToRecord = BigDecimal.ZERO;
+//                fineRepository.save(fine);
+//            }
+//        }
 
     /* =========================================================
        3. CHECK IF CONTRIBUTION IS LATE

@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -29,4 +30,7 @@ public interface ExtraRepository extends JpaRepository<Extra, Long> {
 
     @Query("select e.id, m.fullName, e.amount, e.recordedDate, p.date, e.type, e.status from Extra e join e.period p join e.member m where e.type = :extraType")
     Page<Tuple> findExtras(Pageable pageable, ExtraType extraType);
+
+    @Query("select coalesce(sum(e.amount), 0) from Extra e where e.type = :extraType")
+    BigDecimal sumSurpluses(ExtraType extraType);
 }

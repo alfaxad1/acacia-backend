@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -22,4 +23,8 @@ public interface FineRepository extends JpaRepository<Fine, Long> {
             "from Fine f " +
             "where f.status = :status")
     List<Tuple> findFines(FineStatus status);
+
+
+    @Query("select coalesce(sum(f.amount), 0) from Fine f where f.status = :fineStatus")
+    BigDecimal sumTotalPaidFines(FineStatus fineStatus);
 }

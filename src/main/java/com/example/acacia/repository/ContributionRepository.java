@@ -25,7 +25,7 @@ public interface ContributionRepository extends JpaRepository<Contribution,Long>
 """)
     BigDecimal sumContributions(@Param("member") Member member);
 
-    @Query("select sum(c.amount) from Contribution c")
+    @Query("select coalesce(sum(c.amount), 0) from Contribution c")
     BigDecimal getSaccoBalance();
 
     @Query("select count (c) from Contribution c where c.member = :member and c.isLate = true")

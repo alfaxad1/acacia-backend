@@ -20,7 +20,7 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
     int countDefaults(Member member, LoanStatus status);
 
     @Query("select coalesce(sum(l.approvedAmount), 0) from Loan l where l.status = :loanStatus")
-    BigDecimal sumLoansIssued(LoanStatus loanStatus);
+    BigDecimal sumLoans(LoanStatus loanStatus);
 
     @Query("select count(l) from Loan l where l.status = :loanStatus")
     long countActive(LoanStatus loanStatus);
