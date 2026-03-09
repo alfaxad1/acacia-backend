@@ -12,7 +12,7 @@ public class DashboardSummary {
     private BigDecimal saccoBalance;
     private BigDecimal totalLoansIssued;
     private long activeLoans;
-    private long membersWithArrears;
-    private double weeklyComplianceRate;
+    private BigDecimal availableLoanAmount;
+    private PersonalStats personalStats;
 }
 

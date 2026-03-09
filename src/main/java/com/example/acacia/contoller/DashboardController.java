@@ -4,7 +4,9 @@ import com.example.acacia.dto.DashboardSummary;
 import com.example.acacia.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -13,8 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class DashboardController {
     private final DashboardService dashboardService;
 
-    @RequestMapping("/summary")
-    public ResponseEntity<DashboardSummary> getSummary(){
-        return ResponseEntity.ok().body(dashboardService.getDashboardSummary());
+    @GetMapping("/summary")
+    public ResponseEntity<DashboardSummary> getSummary(@RequestParam Long memberId) {
+        return ResponseEntity.ok().body(dashboardService.getDashboardSummary(memberId));
     }
 }

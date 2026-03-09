@@ -19,8 +19,8 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
     @Query("select count(l) from Loan l where l.member = :member and l.status =:status")
     int countDefaults(Member member, LoanStatus status);
 
-    @Query("select coalesce(sum(l.approvedAmount), 0) from Loan l where l.status = :loanStatus")
-    BigDecimal sumLoans(LoanStatus loanStatus);
+    @Query("select coalesce(sum(l.approvedAmount), 0) from Loan l where l.status in :loanStatus")
+    BigDecimal sumLoans(List<LoanStatus> loanStatus);
 
     @Query("select count(l) from Loan l where l.status = :loanStatus")
     long countActive(LoanStatus loanStatus);
@@ -30,4 +30,7 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
             "l.durationDays, l.requestDate, l.approvalDate, l.member.memberNumber, l.member.id, l.eligibleAmount " +
             "from Loan l where l.status = :loanStatus")
     Page<Tuple> getActiveLoans(LoanStatus loanStatus, Pageable pageable);
+
+    @Query("select count(l), coalesce(sum(l.totalPayable), 0) from Loan l join l.member m where m.id =:userId and l.status in :statuses")
+    List<Object[]> getMemberLoansInfo(Long userId, List<LoanStatus> statuses);
 }

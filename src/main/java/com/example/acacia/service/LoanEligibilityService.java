@@ -33,7 +33,6 @@ public class LoanEligibilityService {
                 .orElseThrow()
                 .getScore();
 
-        // ❌ Member has arrears
         boolean hasArrears = extraRepository
                 .existsByMemberAndTypeAndStatus(
                         member, ExtraType.ARREAR, ExtraStatus.ACTIVE

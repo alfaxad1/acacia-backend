@@ -43,7 +43,6 @@ public class AuthController {
                 .body(response);
     }
 
-
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(@CookieValue(value = "refreshToken", required = false) String refreshToken) {
         if (refreshToken == null || !jwtUtil.validateRefreshToken(refreshToken)) {
