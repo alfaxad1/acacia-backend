@@ -20,6 +20,8 @@ public class LoanDto {
     private BigDecimal eligibleAmount;
     private BigDecimal approvedAmount;
     private BigDecimal paidAmount;
+    private BigDecimal totalPayableAmount;
+    private BigDecimal balance;
     private LocalDate dueDate;
     private BigDecimal interestAmount;
     private LoanStatus status;
@@ -28,5 +30,6 @@ public class LoanDto {
     private LocalDate approvedDate;
     private String memberNo;
     private Long memberId;
+    private LocalDate repaidDate;
 
 }

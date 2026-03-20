@@ -13,6 +13,8 @@ public class DashboardSummary {
     private BigDecimal totalLoansIssued;
     private long activeLoans;
     private BigDecimal availableLoanAmount;
+    private BigDecimal totalContributions;
+    private Long members;
     private PersonalStats personalStats;
 }
 

@@ -27,10 +27,13 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
 
     @Query("select l.id, l.member.fullName, l.requestedAmount, " +
             "l.approvedAmount, l.totalPayable, l.dueDate, l.interestAmount, l.status, " +
-            "l.durationDays, l.requestDate, l.approvalDate, l.member.memberNumber, l.member.id, l.eligibleAmount " +
+            "l.durationDays, l.requestDate, l.approvalDate, l.member.memberNumber, l.member.id, l.eligibleAmount, " +
+            "(l.totalPayable - COALESCE((select sum(p.amount) from LoanRepayment p where p.loan.id = l.id), 0)), l.repaidDate " +
             "from Loan l where l.status = :loanStatus")
     Page<Tuple> getActiveLoans(LoanStatus loanStatus, Pageable pageable);
 
     @Query("select count(l), coalesce(sum(l.totalPayable), 0) from Loan l join l.member m where m.id =:userId and l.status in :statuses")
     List<Object[]> getMemberLoansInfo(Long userId, List<LoanStatus> statuses);
+
+    List<Loan> findByStatusAndDueDate(LoanStatus loanStatus, LocalDate sevenDaysFromNow);
 }

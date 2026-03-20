@@ -18,6 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -141,33 +142,63 @@ public class LoanService {
 
     @Scheduled(cron = "0 0 1 * * ?") // Every day at 1AM
     @Transactional
-    public void applyLoanPenalties() {
+    public void processLoanNotificationsAndPenalties() {
+        LocalDate today = LocalDate.now();
 
-        List<Loan> overdueLoans = loanRepository
-                .findByStatusAndDueDateBefore(
-                        LoanStatus.DISBURSED, LocalDate.now()
-                );
-
+        // 1. PROCESS OVERDUE LOANS (Existing Logic)
+        List<Loan> overdueLoans = loanRepository.findByStatusAndDueDateBefore(LoanStatus.DISBURSED, today);
         for (Loan loan : overdueLoans) {
-
-            BigDecimal penalty =
-                    loan.getApprovedAmount()
-                            .multiply(loan.getPenaltyRate())
-                            .divide(BigDecimal.valueOf(100));
-
-            long daysLate = ChronoUnit.DAYS.between(loan.getDueDate(), LocalDate.now());
-
-            LoanPenalty lp = new LoanPenalty();
-            lp.setLoan(loan);
-            lp.setDaysLate(Math.max(daysLate, 0));
-            lp.setAmount(penalty);
-            lp.setPenaltyDate(LocalDate.now());
-
-            loanPenaltyRepository.save(lp);
-
-            loan.setStatus(LoanStatus.DEFAULTED);
-            loanRepository.save(loan);
+            applyPenaltyAndMarkDefault(loan, today);
         }
+
+        // 2. SEVEN DAY REMINDER
+        // Find loans where dueDate is exactly 7 days from now
+        LocalDate sevenDaysFromNow = today.plusDays(7);
+        List<Loan> upcomingSevenDays = loanRepository.findByStatusAndDueDate(LoanStatus.DISBURSED, sevenDaysFromNow);
+        for (Loan loan : upcomingSevenDays) {
+            sendReminder(loan, "Loan Repayment Reminder: 7 Days Remaining");
+        }
+
+        // 3. FINAL 3 DAYS REMINDERS (Last 3 days up to the due date)
+        // We fetch loans due tomorrow, in 2 days, and in 3 days
+        for (int i = 1; i <= 3; i++) {
+            LocalDate targetDate = today.plusDays(i);
+            List<Loan> finalReminders = loanRepository.findByStatusAndDueDate(LoanStatus.DISBURSED, targetDate);
+            for (Loan loan : finalReminders) {
+                sendReminder(loan, "URGENT: Loan Repayment Due in " + i + " Days");
+            }
+        }
+    }
+
+    private void applyPenaltyAndMarkDefault(Loan loan, LocalDate today) {
+        BigDecimal penalty = loan.getApprovedAmount()
+                .multiply(loan.getPenaltyRate())
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+        long daysLate = ChronoUnit.DAYS.between(loan.getDueDate(), today);
+
+        LoanPenalty lp = new LoanPenalty();
+        lp.setLoan(loan);
+        lp.setDaysLate(Math.max(daysLate, 0));
+        lp.setAmount(penalty);
+        lp.setPenaltyDate(today);
+
+        loanPenaltyRepository.save(lp);
+
+        loan.setStatus(LoanStatus.DEFAULTED);
+        loanRepository.save(loan);
+
+        sendReminder(loan, "Notice: Your Loan is Overdue and Penalties Applied");
+    }
+
+    private void sendReminder(Loan loan, String subject) {
+        String content = "Dear " + loan.getMember().getFullName() + ",\n\n" +
+                "This is a reminder regarding your loan of " + loan.getApprovedAmount() + ".\n" +
+                "Due Date: " + loan.getDueDate() + ".\n" +
+                "Total Payable: " + loan.getTotalPayable() + ".\n\n" +
+                "Please ensure timely payment to avoid penalties.";
+
+        emailService.sendMail(loan.getMember().getEmail(), subject, content);
     }
 
     @Transactional
@@ -258,7 +289,7 @@ public class LoanService {
                         .memberName(loan.get(1, String.class))
                         .requestedAmount(loan.get(2, BigDecimal.class))
                         .approvedAmount(loan.get(3, BigDecimal.class))
-                        .paidAmount(loan.get(4, BigDecimal.class))
+                        .totalPayableAmount(loan.get(4, BigDecimal.class))
                         .dueDate(loan.get(5, LocalDate.class))
                         .interestAmount(loan.get(6, BigDecimal.class))
                         .status(loan.get(7, LoanStatus.class))
@@ -268,6 +299,8 @@ public class LoanService {
                         .memberNo(loan.get(11, String.class))
                         .memberId(loan.get(12, Long.class))
                         .eligibleAmount(loan.get(13, BigDecimal.class))
+                        .balance(loan.get(14, BigDecimal.class))
+                        .repaidDate(loan.get(15, LocalDate.class))
                         .build();
                 dtoList.add(dto);
             }

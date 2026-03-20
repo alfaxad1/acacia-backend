@@ -61,6 +61,8 @@ public interface ContributionRepository extends JpaRepository<Contribution,Long>
 
     @Query("SELECT c.member.id FROM Contribution c WHERE c.paymentDate = :contributionDate")
     List<Long> findPaidMemberIds(@Param("contributionDate") LocalDate contributionDate);
+
+    List<Contribution> findAllByMember(Member member);
 }
 
 

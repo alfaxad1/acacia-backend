@@ -3,6 +3,8 @@ package com.example.acacia.service;
 import com.example.acacia.dto.DashboardSummary;
 import com.example.acacia.dto.PersonalStats;
 import com.example.acacia.enums.*;
+import com.example.acacia.model.Contribution;
+import com.example.acacia.model.Member;
 import com.example.acacia.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,14 @@ public class DashboardService {
 
         long activeLoans = loanRepository.countActive(LoanStatus.DISBURSED);
 
+        Long members = memberRepository.countActive(MemberStatus.ACTIVE);
+        Member member = memberRepository.findById(userId).orElseThrow(() -> new RuntimeException("Member Not Found"));
+
+        List<Contribution> memberContributions = contributionRepository.findAllByMember(member);
+        BigDecimal totalMemberContribution = memberContributions.stream()
+                .map(Contribution::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         Long numberOfFines = null;
         BigDecimal totalFinesAmount = null;
         Long numberOfLoans = null;
@@ -70,8 +80,23 @@ public class DashboardService {
         }
 
         return new DashboardSummary(
-                balance, totalActiveLoans, activeLoans, balance.multiply(BigDecimal.valueOf(0.5)),
-                new PersonalStats(totalFinesAmount, numberOfFines, totalLoansAmount, numberOfLoans, totalArrearsAmount, totalArrears)
+                balance,
+                totalActiveLoans,
+                activeLoans,
+                balance.multiply(BigDecimal.valueOf(0.5)),
+                totalContributions,
+                members,
+                new PersonalStats(
+                        totalFinesAmount,
+                        numberOfFines,
+                        totalLoansAmount,
+                        numberOfLoans,
+                        totalArrearsAmount,
+                        totalArrears,
+                        member.isPremium(),
+                        member.getJoinDate(),
+                        totalMemberContribution
+                )
         );
     }
 

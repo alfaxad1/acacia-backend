@@ -28,7 +28,7 @@ public class JwtUtils {
         claims.put("memberId", member.getId());
         claims.put("name", member.getFullName());
 
-        long expiration = 1000 * 60 * 15;
+        long expiration = 1000 * 60 * 60;
 
         return Jwts.builder()
                 .setClaims(claims)

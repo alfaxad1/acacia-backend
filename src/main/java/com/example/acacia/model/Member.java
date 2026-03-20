@@ -32,6 +32,7 @@ public class Member implements UserDetails {
     private String email;
     private String password;
     private LocalDate joinDate;
+    private boolean isPremium = false;
 
     @Enumerated(EnumType.STRING)
     private Role role;

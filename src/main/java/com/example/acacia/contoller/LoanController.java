@@ -69,7 +69,7 @@ public class LoanController {
 
     @PostMapping("/appy-penalty")
     public ResponseEntity<?> applyPenalty() {
-        loanService.applyLoanPenalties();
+        loanService.processLoanNotificationsAndPenalties();
         return ResponseEntity.ok().build();
     }
 
