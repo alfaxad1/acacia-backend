@@ -25,12 +25,12 @@ public class DashboardService {
 
     public DashboardSummary getDashboardSummary(Long userId) {
         BigDecimal totalContributions = contributionRepository.getSaccoBalance();
-        BigDecimal totalPaidLoans = loanRepository.sumLoans(List.of(LoanStatus.REPAID));
+        BigDecimal totalPaidLoans = loanRepository.sumPaidLoans(List.of(LoanStatus.REPAID));
         BigDecimal totalPaidFines = fineRepository.sumTotalPaidFines(FineStatus.PAID);
         BigDecimal totalDebits = adjustmentRepository.sumAdjustments(AdjustmentType.DEBIT);
         BigDecimal totalSurpluses = extraRepository.sumSurpluses(ExtraType.SURPLUS);
 
-        BigDecimal totalActiveLoans = loanRepository.sumLoans(List.of(LoanStatus.DISBURSED, LoanStatus.DEFAULTED));
+        BigDecimal totalActiveLoans = loanRepository.sumLoans(List.of(LoanStatus.DISBURSED, LoanStatus.DEFAULTED, LoanStatus.REPAID));
         BigDecimal totalCredits = adjustmentRepository.sumAdjustments(AdjustmentType.CREDIT);
 
         BigDecimal inAccount = totalContributions.add(totalPaidLoans).add(totalPaidFines).add(totalDebits).add(totalSurpluses);
