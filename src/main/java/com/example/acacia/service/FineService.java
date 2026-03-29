@@ -3,7 +3,6 @@ package com.example.acacia.service;
 import com.example.acacia.Exception.ResourceNotFoundException;
 import com.example.acacia.dto.FineDto;
 import com.example.acacia.dto.FineRequest;
-import com.example.acacia.dto.LoanDto;
 import com.example.acacia.enums.FineStatus;
 import com.example.acacia.enums.FineTyp;
 import com.example.acacia.enums.SetupStatus;

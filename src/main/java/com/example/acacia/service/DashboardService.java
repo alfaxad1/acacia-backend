@@ -71,7 +71,8 @@ public class DashboardService {
             totalLoansAmount = (BigDecimal) row[1];
         }
 
-        List<Object[]> arrearsResults = contributionArrearRepository.getMemberContributionArrear(userId);
+        boolean isPaid = false;
+        List<Object[]> arrearsResults = contributionArrearRepository.getMemberContributionArrear(userId, isPaid);
         if (arrearsResults != null && !arrearsResults.isEmpty()) {
             Object[] row = arrearsResults.get(0);
 

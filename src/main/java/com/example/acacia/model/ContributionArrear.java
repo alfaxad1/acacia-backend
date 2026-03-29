@@ -31,4 +31,6 @@ public class ContributionArrear {
     @JoinColumn(name = "fine_id")
     private Fine fine;
 
+    private boolean isPaid = false;
+
 }

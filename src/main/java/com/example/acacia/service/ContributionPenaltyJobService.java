@@ -104,6 +104,7 @@ public class ContributionPenaltyJobService {
                         .status(FineStatus.UNPAID)
                         .type(FineTyp.LATE_PAYMENT)
                         .fineDate(LocalDate.now())
+                        .referenceId(currentPeriod.getId())
                         .build();
 
                 Fine savedFine = fineRepository.save(fine);

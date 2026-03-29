@@ -1,14 +1,12 @@
 package com.example.acacia.service;
 
 import com.example.acacia.enums.SetupStatus;
-import com.example.acacia.model.ContributionPeriod;
 import com.example.acacia.model.Member;
 import com.example.acacia.repository.ContributionRepository;
 import com.example.acacia.repository.MemberRepository;
 import com.example.acacia.repository.SaccoSetupRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 

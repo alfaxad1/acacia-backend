@@ -36,10 +36,7 @@ public class LoanService {
     private final LoanRepository loanRepository;
     private final ExtraRepository extraRepository;
     private final LoanPenaltyRepository loanPenaltyRepository;
-    private final LoanRepaymentScheduleRepository scheduleRepository;
-    private final CreditScoreRepository creditScoreRepository;
     private final LoanRepaymentRepository loanRepaymentRepository;
-    private final EquityService equityService;
     private final CreditScoreService creditScoreService;
     private final SaccoSetupRepository saccoSetupRepository;
     private final EmailService emailService;

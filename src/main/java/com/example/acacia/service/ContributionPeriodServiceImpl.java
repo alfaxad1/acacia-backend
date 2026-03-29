@@ -11,7 +11,6 @@ import com.example.acacia.model.ContributionPeriod;
 import com.example.acacia.model.SaccoSetups;
 import com.example.acacia.repository.ContributionPeriodRepository;
 import com.example.acacia.repository.ContributionRepository;
-import com.example.acacia.repository.MemberRepository;
 import com.example.acacia.repository.SaccoSetupRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,8 +32,7 @@ public class ContributionPeriodServiceImpl implements ContributionPeriodService 
     private final ContributionPeriodRepository contributionPeriodRepository;
     private final SaccoSetupRepository saccoSetupRepository;
     private final ContributionRepository contributionRepository;
-    private final MemberRepository memberRepository;
-    private final SaccoSetupRepository setupRepository;
+
 
     @Override
     public Response<List<ContributionPeriodDto>> getContributionPeriods(Pageable pageable) {

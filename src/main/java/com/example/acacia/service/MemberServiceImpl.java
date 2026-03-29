@@ -1,12 +1,9 @@
 package com.example.acacia.service;
 
-import com.example.acacia.enums.MemberStatus;
 import com.example.acacia.model.Member;
 import com.example.acacia.repository.MemberRepository;
 import com.example.acacia.utility.MemberNumberGenerator;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

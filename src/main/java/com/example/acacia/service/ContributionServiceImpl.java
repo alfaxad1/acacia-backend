@@ -9,17 +9,19 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.Tuple;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ContributionServiceImpl implements ContributionService {
     private final ContributionPeriodRepository periodRepository;
@@ -28,15 +30,13 @@ public class ContributionServiceImpl implements ContributionService {
     private final FineRepository fineRepository;
     private final SaccoSetupRepository saccoSetupRepository;
     private final ContributionRepository contributionRepository;
-    private final EquityService equityService;
     private final CreditScoreService creditScoreService;
     private final ContributionArrearRepository contributionArrearRepository;
 
     @Override
     @Transactional
     public void addContribution(ContributionRequest contribution) {
-
-        // 1. Validate member & period
+        // Validate member & period
         Member member = memberRepository.findById(contribution.getMemberId())
                 .orElseThrow(() -> new ResourceNotFoundException("Member doesn't exist"));
 
@@ -45,8 +45,15 @@ public class ContributionServiceImpl implements ContributionService {
 
         if (contributionRepository.existsByMemberAndPeriod(member, period)) {
             throw new IllegalStateException(
-                    "Contribution already recorded for this period"
-            );
+                    "Contribution already recorded for this period");
+        }
+
+        ContributionArrear contributionArrear = contributionArrearRepository.findByMemberAndPeriodAndIsPaid(member,
+                period, false);
+
+        if (contributionArrear != null) {
+            contributionArrear.setPaid(true);
+            contributionArrearRepository.save(contributionArrear);
         }
 
         SaccoSetups setups = saccoSetupRepository.findByStatus(SetupStatus.ACTIVE);
@@ -56,37 +63,37 @@ public class ContributionServiceImpl implements ContributionService {
             throw new IllegalArgumentException("Invalid contribution amount");
         }
 
-//    /* =========================================================
-//       2. SETTLE UNPAID FINES (OLDEST FIRST)
-//       ========================================================= */
-//        List<Fine> fines = fineRepository.findByMemberAndStatusOrderByIdAsc(member, FineStatus.UNPAID);
-//
-//        for (Fine fine : fines) {
-//
-//            if (amountToRecord.compareTo(BigDecimal.ZERO) <= 0) break;
-//
-//            BigDecimal fineAmount = fine.getAmount();
-//
-//            // Contribution can clear this fine fully
-//            if (amountToRecord.compareTo(fineAmount) >= 0) {
-//                amountToRecord = amountToRecord.subtract(fineAmount);
-//                fine.setStatus(FineStatus.PAID);
-//                fineRepository.save(fine);
-//            }
-//            else {
-//                fine.setAmount(fineAmount.subtract(amountToRecord));
-//                amountToRecord = BigDecimal.ZERO;
-//                fineRepository.save(fine);
-//            }
-//        }
+        // Settle unpaid fines that are past 30 days starting with the oldest
+        List<Fine> fines = fineRepository.findByMemberAndStatusAndFineDateBeforeOrderByFineDateAsc(
+                member,
+                FineStatus.UNPAID,
+                LocalDate.now().minusDays(30));
 
-    /* =========================================================
-       3. CHECK IF CONTRIBUTION IS LATE
-       ========================================================= */
+        for (Fine fine : fines) {
+
+            if (amountToRecord.compareTo(BigDecimal.ZERO) <= 0)
+                break;
+
+            BigDecimal fineAmount = fine.getAmount();
+
+            // Contribution can clear this fine fully
+            if (amountToRecord.compareTo(fineAmount) >= 0) {
+                amountToRecord = amountToRecord.subtract(fineAmount);
+                fine.setStatus(FineStatus.PAID);
+                fineRepository.save(fine);
+            } else {
+                fine.setAmount(fineAmount.subtract(amountToRecord));
+                amountToRecord = BigDecimal.ZERO;
+                fineRepository.save(fine);
+            }
+        }
+
+        // check if contribution is late and is not recorded
         boolean isLate = contribution.getPaymentDate()
                 .isAfter(period.getDeadline());
+        boolean isRecorded = fineRepository.findByMemberAndReferenceId(member, period.getId());
 
-        if (isLate) {
+        if (isLate && !isRecorded) {
             Fine lateFine = Fine.builder()
                     .member(member)
                     .amount(setups.getLatePaymentFineAmount())
@@ -96,11 +103,17 @@ public class ContributionServiceImpl implements ContributionService {
                     .referenceId(period.getId())
                     .build();
             fineRepository.save(lateFine);
+            log.info("Member {} contribution used to settle fine", member.getId());
         }
 
-    /* =========================================================
-       4. RECORD CONTRIBUTION / SURPLUS / ARREARS
-       ========================================================= */
+        /**
+         * Record contribution contribution amount equal the required contribution
+         * amount
+         * Record surplus if contribution amount is larger than the required contibution
+         * amount
+         * Record arrear if contribution amount is less than the required contibution
+         * amount
+         */
         BigDecimal requiredAmount = setups.getContributionAmount();
 
         Contribution savedContribution = new Contribution();
@@ -113,7 +126,7 @@ public class ContributionServiceImpl implements ContributionService {
         if (amountToRecord.compareTo(requiredAmount) == 0) {
             savedContribution.setAmount(requiredAmount);
             contributionRepository.save(savedContribution);
-            //equityService.recalculateAllEquity();
+            // equityService.recalculateAllEquity();
             creditScoreService.updateCreditScore(member);
 
         }
@@ -123,7 +136,7 @@ public class ContributionServiceImpl implements ContributionService {
 
             savedContribution.setAmount(requiredAmount);
             contributionRepository.save(savedContribution);
-            //equityService.recalculateAllEquity();
+            // equityService.recalculateAllEquity();
             creditScoreService.updateCreditScore(member);
 
             BigDecimal surplusAmount = amountToRecord.subtract(requiredAmount);
@@ -145,7 +158,7 @@ public class ContributionServiceImpl implements ContributionService {
 
             savedContribution.setAmount(amountToRecord);
             contributionRepository.save(savedContribution);
-            //equityService.recalculateAllEquity();
+            // equityService.recalculateAllEquity();
             creditScoreService.updateCreditScore(member);
 
             BigDecimal arrearAmount = requiredAmount.subtract(amountToRecord);
@@ -170,13 +183,11 @@ public class ContributionServiceImpl implements ContributionService {
 
         List<Extra> arrears = extraRepository
                 .findByMemberAndTypeAndStatusOrderByIdAsc(
-                        member, ExtraType.ARREAR, ExtraStatus.ACTIVE
-                );
+                        member, ExtraType.ARREAR, ExtraStatus.ACTIVE);
 
         List<Extra> surpluses = extraRepository
                 .findByMemberAndTypeAndStatusOrderByIdAsc(
-                        member, ExtraType.SURPLUS, ExtraStatus.ACTIVE
-                );
+                        member, ExtraType.SURPLUS, ExtraStatus.ACTIVE);
 
         for (Extra surplus : surpluses) {
 
@@ -184,7 +195,8 @@ public class ContributionServiceImpl implements ContributionService {
 
             for (Extra arrear : arrears) {
 
-                if (surplusAmount.compareTo(BigDecimal.ZERO) <= 0) break;
+                if (surplusAmount.compareTo(BigDecimal.ZERO) <= 0)
+                    break;
 
                 BigDecimal arrearAmount = arrear.getAmount();
 
@@ -205,7 +217,7 @@ public class ContributionServiceImpl implements ContributionService {
 
             surplus.setAmount(surplusAmount);
             if (surplusAmount.compareTo(BigDecimal.ZERO) == 0) {
-                surplus.setStatus(ExtraStatus.ACTIVE);
+                surplus.setStatus(ExtraStatus.SETTLED);
             }
             extraRepository.save(surplus);
         }
@@ -223,8 +235,7 @@ public class ContributionServiceImpl implements ContributionService {
                         c.getPeriod().getDate(),
                         c.getAmount(),
                         c.getPaymentDate(),
-                        c.isLate()
-                ))
+                        c.isLate()))
                 .orElseThrow(() -> new EntityNotFoundException("Contribution not found"));
     }
 
