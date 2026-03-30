@@ -1,6 +1,7 @@
 package com.example.acacia.repository;
 
 import com.example.acacia.enums.FineStatus;
+import com.example.acacia.enums.FineTyp;
 import com.example.acacia.model.Fine;
 import com.example.acacia.model.Member;
 import jakarta.persistence.Tuple;
@@ -31,10 +32,12 @@ public interface FineRepository extends JpaRepository<Fine, Long> {
     @Query("select count(f), coalesce(sum(f.amount), 0) from Fine f join f.member m where m.id = :userId and f.status = :status")
     List<Object[]> getMemberFines(Long userId, FineStatus status);
 
-    boolean findByMemberAndReferenceId(Member member, Long id);
+    boolean existsByMemberAndTypeAndReferenceId(Member member, FineTyp type, Long referenceId);
 
     List<Fine> findByMemberAndStatusAndFineDateBeforeOrderByFineDateAsc(
             Member member,
             FineStatus status,
             LocalDate date);
+
+    List<Fine> findByMemberAndStatusAndFineDateBefore(Member member, FineStatus fineStatus, LocalDate localDate);
 }

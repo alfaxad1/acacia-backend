@@ -31,7 +31,7 @@ public class AuthService {
     public void signup(Member member) {
         Optional<Member> members = userRepository.findByEmail(member.getEmail());
         if (members.isPresent()) {
-            throw new ApplicationException("Member already exists");
+            throw new ApplicationException("Member already exists", "MEMBER_EXISTS");
         }
         Member member1 = new Member();
         member1.setMemberNumber(memberNumberGenerator.generateMemberNumber());
@@ -72,7 +72,7 @@ public class AuthService {
             throw new AuthenticationException("Invalid email or password");
         }
         catch (Exception e) {
-            throw new ApplicationException("Error logging in:  " + e.getMessage());
+            throw new ApplicationException("Error logging in:  " + e.getMessage(), "LOGIN_ERROR");
         }
     }
 }

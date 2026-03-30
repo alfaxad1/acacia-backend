@@ -1,5 +1,6 @@
 package com.example.acacia.service;
 
+import com.example.acacia.Exception.BusinessException;
 import com.example.acacia.Exception.ResourceNotFoundException;
 import com.example.acacia.dto.*;
 import com.example.acacia.enums.*;
@@ -64,34 +65,46 @@ public class ContributionServiceImpl implements ContributionService {
         }
 
         // Settle unpaid fines that are past 30 days starting with the oldest
-        List<Fine> fines = fineRepository.findByMemberAndStatusAndFineDateBeforeOrderByFineDateAsc(
-                member,
-                FineStatus.UNPAID,
-                LocalDate.now().minusDays(30));
+//        List<Fine> fines = fineRepository.findByMemberAndStatusAndFineDateBeforeOrderByFineDateAsc(
+//                member,
+//                FineStatus.UNPAID,
+//                LocalDate.now().minusDays(30));
 
-        for (Fine fine : fines) {
+        List<Fine> oldUnpaidFines = fineRepository.findByMemberAndStatusAndFineDateBefore(
+                member, FineStatus.UNPAID, LocalDate.now().minusDays(30));
 
-            if (amountToRecord.compareTo(BigDecimal.ZERO) <= 0)
-                break;
+        if (!oldUnpaidFines.isEmpty()) {
+            long count = oldUnpaidFines.size();
+            String message = count == 1
+                    ? "The member has 1 unpaid fine older than 30 days. Please settle it first."
+                    : "The member has " + count + " unpaid fines older than 30 days. Please settle them first.";
 
-            BigDecimal fineAmount = fine.getAmount();
-
-            // Contribution can clear this fine fully
-            if (amountToRecord.compareTo(fineAmount) >= 0) {
-                amountToRecord = amountToRecord.subtract(fineAmount);
-                fine.setStatus(FineStatus.PAID);
-                fineRepository.save(fine);
-            } else {
-                fine.setAmount(fineAmount.subtract(amountToRecord));
-                amountToRecord = BigDecimal.ZERO;
-                fineRepository.save(fine);
-            }
+            throw new BusinessException(message, "UNPAID_FINES_PENDING");
         }
+//        for (Fine fine : fines) {
+//
+//            if (amountToRecord.compareTo(BigDecimal.ZERO) <= 0)
+//                break;
+//
+//            BigDecimal fineAmount = fine.getAmount();
+//
+//            // Contribution can clear this fine fully
+//            if (amountToRecord.compareTo(fineAmount) >= 0) {
+//                amountToRecord = amountToRecord.subtract(fineAmount);
+//                fine.setPaid(true);
+//                fine.setStatus(FineStatus.PAID);
+//                fineRepository.save(fine);
+//            } else {
+//                fine.setAmount(fineAmount.subtract(amountToRecord));
+//                amountToRecord = BigDecimal.ZERO;
+//                fineRepository.save(fine);
+//            }
+//        }
 
         // check if contribution is late and is not recorded
         boolean isLate = contribution.getPaymentDate()
                 .isAfter(period.getDeadline());
-        boolean isRecorded = fineRepository.findByMemberAndReferenceId(member, period.getId());
+        boolean isRecorded = fineRepository.existsByMemberAndTypeAndReferenceId(member, FineTyp.LATE_PAYMENT, period.getId());
 
         if (isLate && !isRecorded) {
             Fine lateFine = Fine.builder()
@@ -103,16 +116,13 @@ public class ContributionServiceImpl implements ContributionService {
                     .referenceId(period.getId())
                     .build();
             fineRepository.save(lateFine);
-            log.info("Member {} contribution used to settle fine", member.getId());
+            log.info("Late payment fine recorded for member {} on period {}", member.getId(), period.getId());
         }
 
         /**
-         * Record contribution contribution amount equal the required contribution
-         * amount
-         * Record surplus if contribution amount is larger than the required contibution
-         * amount
-         * Record arrear if contribution amount is less than the required contibution
-         * amount
+         * Record contribution if contribution amount equal the required contribution amount
+         * Record surplus if contribution amount is larger than the required contribution amount
+         * Record arrear if contribution amount is less than the required contribution amount
          */
         BigDecimal requiredAmount = setups.getContributionAmount();
 
