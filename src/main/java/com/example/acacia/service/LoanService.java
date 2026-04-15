@@ -142,22 +142,21 @@ public class LoanService {
     public void processLoanNotificationsAndPenalties() {
         LocalDate today = LocalDate.now();
 
-        // 1. PROCESS OVERDUE LOANS (Existing Logic)
-        List<Loan> overdueLoans = loanRepository.findByStatusAndDueDateBefore(LoanStatus.DISBURSED, today);
+        List<Loan> overdueLoans = loanRepository.findByStatusInAndDueDateBefore(
+                List.of(LoanStatus.DISBURSED, LoanStatus.DEFAULTED), today);
+
         for (Loan loan : overdueLoans) {
-            applyPenaltyAndMarkDefault(loan, today);
+            if (shouldApplyPenalty(loan, today)) {
+                applyPenaltyAndMarkDefault(loan, today);
+            }
         }
 
-        // 2. SEVEN DAY REMINDER
-        // Find loans where dueDate is exactly 7 days from now
         LocalDate sevenDaysFromNow = today.plusDays(7);
         List<Loan> upcomingSevenDays = loanRepository.findByStatusAndDueDate(LoanStatus.DISBURSED, sevenDaysFromNow);
         for (Loan loan : upcomingSevenDays) {
             sendReminder(loan, "Loan Repayment Reminder: 7 Days Remaining");
         }
 
-        // 3. FINAL 3 DAYS REMINDERS (Last 3 days up to the due date)
-        // We fetch loans due tomorrow, in 2 days, and in 3 days
         for (int i = 1; i <= 3; i++) {
             LocalDate targetDate = today.plusDays(i);
             List<Loan> finalReminders = loanRepository.findByStatusAndDueDate(LoanStatus.DISBURSED, targetDate);
@@ -167,25 +166,42 @@ public class LoanService {
         }
     }
 
-    private void applyPenaltyAndMarkDefault(Loan loan, LocalDate today) {
-        BigDecimal penalty = loan.getApprovedAmount()
-                .multiply(loan.getPenaltyRate())
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+    private boolean shouldApplyPenalty(Loan loan, LocalDate today) {
+        if (loan.getStatus() == LoanStatus.DISBURSED) {
+            return true;
+        }
 
-        long daysLate = ChronoUnit.DAYS.between(loan.getDueDate(), today);
+        long daysOverdue = ChronoUnit.DAYS.between(loan.getDueDate(), today);
+
+        return daysOverdue > 0 && daysOverdue % 7 == 0;
+    }
+
+    private void applyPenaltyAndMarkDefault(Loan loan, LocalDate today) {
+        BigDecimal approvedAmount = loan.getApprovedAmount();
+        BigDecimal rate = getTieredRate(approvedAmount);
+
+        BigDecimal penaltyAmount = approvedAmount.multiply(rate)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        loan.setStatus(LoanStatus.DEFAULTED);
+        BigDecimal currentTotal = loan.getTotalPayable() != null ? loan.getTotalPayable() : BigDecimal.ZERO;
+        loan.setTotalPayable(currentTotal.add(penaltyAmount));
+
+        loanRepository.save(loan);
 
         LoanPenalty lp = new LoanPenalty();
         lp.setLoan(loan);
-        lp.setDaysLate(Math.max(daysLate, 0));
-        lp.setAmount(penalty);
+        lp.setAmount(penaltyAmount);
         lp.setPenaltyDate(today);
+        lp.setDaysLate(ChronoUnit.DAYS.between(loan.getDueDate(), today));
 
         loanPenaltyRepository.save(lp);
+    }
 
-        loan.setStatus(LoanStatus.DEFAULTED);
-        loanRepository.save(loan);
-
-        sendReminder(loan, "Notice: Your Loan is Overdue and Penalties Applied");
+    private BigDecimal getTieredRate(BigDecimal amount) {
+        if (amount.compareTo(new BigDecimal("5000")) <= 0) return new BigDecimal("0.03");
+        if (amount.compareTo(new BigDecimal("10000")) <= 0) return new BigDecimal("0.04");
+        return new BigDecimal("0.05");
     }
 
     private void sendReminder(Loan loan, String subject) {
@@ -262,7 +278,6 @@ public class LoanService {
         creditScoreService.updateCreditScore(loan.getMember());
 
     }
-
 
     @Transactional
     public void rejectLoan(Long loanId, String reason) {
