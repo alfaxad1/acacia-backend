@@ -30,7 +30,11 @@ public class ContributionController {
     private final ContributionPenaltyJobService penaltyJobService;
 
     @PostMapping
-    ResponseEntity<?> recordContribution(Long periodId, Long memberId, LocalDateTime paymentDate, BigDecimal amount) throws IOException {
+    ResponseEntity<?> recordContribution(
+            @RequestParam Long periodId,
+            @RequestParam Long memberId,
+            @RequestParam BigDecimal amount
+    ) throws IOException {
         contributionService.initiateContribution(periodId, memberId, amount);
         return ResponseHandler.responseBuilder("contribution recorded successfully", HttpStatus.CREATED, null);
     }
