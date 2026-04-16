@@ -10,8 +10,6 @@ import jakarta.persistence.Tuple;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,10 +24,9 @@ import java.util.List;
 import java.util.Objects;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
+@Slf4j
 public class LoanService {
-    private static final Logger log = LoggerFactory.getLogger(LoanService.class);
     private final MemberRepository memberRepository;
     private final ContributionRepository contributionRepository;
     private final LoanEligibilityService eligibilityService;
@@ -100,7 +97,10 @@ public class LoanService {
         }
 
         BigDecimal approvedAmount = loan.getRequestedAmount().min(loan.getEligibleAmount());
-        BigDecimal interest = approvedAmount.multiply(loan.getInterestRate()).divide(BigDecimal.valueOf(100));
+        BigDecimal interest = approvedAmount
+                .multiply(loan.getInterestRate())
+                .divide(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.CEILING);
         BigDecimal totalPayable = approvedAmount.add(interest);
 
         loan.setApprovedAmount(approvedAmount);
@@ -196,6 +196,13 @@ public class LoanService {
         lp.setDaysLate(ChronoUnit.DAYS.between(loan.getDueDate(), today));
 
         loanPenaltyRepository.save(lp);
+
+        String message = String.format(
+            "Notice: A weekly penalty of %s has been applied to your loan. Your new total payable is %s.",
+            penaltyAmount, currentTotal.add(penaltyAmount).toString()
+        );
+
+        emailService.sendMail(loan.getMember().getEmail(), "LOAN PENALTY", message);
     }
 
     private BigDecimal getTieredRate(BigDecimal amount) {
