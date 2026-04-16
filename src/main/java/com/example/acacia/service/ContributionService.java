@@ -1,17 +1,19 @@
 package com.example.acacia.service;
 
-import com.example.acacia.dto.ContributionArrearDto;
-import com.example.acacia.dto.ContributionRequest;
-import com.example.acacia.dto.ContributionResponseDTO;
-import com.example.acacia.dto.Response;
+import com.example.acacia.dto.*;
 import org.springframework.data.domain.Pageable;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ContributionService {
-    void addContribution(ContributionRequest request);
+    void addContribution(Long periodId, Long memberId, LocalDateTime paymentDate, BigDecimal amount);
     List<ContributionResponseDTO> getAllContributions(Pageable pageable);
     ContributionResponseDTO getContributionById(Long id);
+
+    StkPushResponse initiateContribution(Long memberId, Long periodId, BigDecimal amount) throws IOException;
 
     Response<List<ContributionArrearDto>> getArrears(Pageable pageable);
 }

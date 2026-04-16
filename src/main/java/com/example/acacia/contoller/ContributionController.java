@@ -16,6 +16,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -27,8 +30,8 @@ public class ContributionController {
     private final ContributionPenaltyJobService penaltyJobService;
 
     @PostMapping
-    ResponseEntity<?> recordContribution(@RequestBody ContributionRequest request) {
-        contributionService.addContribution(request);
+    ResponseEntity<?> recordContribution(Long periodId, Long memberId, LocalDateTime paymentDate, BigDecimal amount) throws IOException {
+        contributionService.initiateContribution(periodId, memberId, amount);
         return ResponseHandler.responseBuilder("contribution recorded successfully", HttpStatus.CREATED, null);
     }
 

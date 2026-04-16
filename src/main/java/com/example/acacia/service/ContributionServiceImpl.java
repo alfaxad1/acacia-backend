@@ -16,8 +16,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,21 +35,53 @@ public class ContributionServiceImpl implements ContributionService {
     private final ContributionRepository contributionRepository;
     private final CreditScoreService creditScoreService;
     private final ContributionArrearRepository contributionArrearRepository;
+    private final MpesaService mpesaService;
+    private final TransactionRepository transactionRepository;
 
-    @Override
-    @Transactional
-    public void addContribution(ContributionRequest contribution) {
-        // Validate member & period
-        Member member = memberRepository.findById(contribution.getMemberId())
+    public StkPushResponse initiateContribution(  Long memberId, Long periodId, BigDecimal amount) throws IOException {
+        Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member doesn't exist"));
 
-        ContributionPeriod period = periodRepository.findById(contribution.getPeriodId())
+        ContributionPeriod period = periodRepository.findById(periodId)
                 .orElseThrow(() -> new ResourceNotFoundException("Period doesn't exist"));
 
         if (contributionRepository.existsByMemberAndPeriod(member, period)) {
             throw new IllegalStateException(
                     "Contribution already recorded for this period");
         }
+
+        // 2. Trigger STK Push via MpesaService
+        StkPushResponse mpesaResponse = mpesaService.stkPush(
+                member.getPhone(),
+                amount.toString(),
+                "CONTRIBUTION-" + member.getMemberNumber(),
+                "Weekly Contribution"
+        );
+
+        // 3. Save a "PENDING" transaction record
+        // This links the M-Pesa request to your internal Member ID
+        Transaction txn = new Transaction();
+        txn.setCheckoutRequestID(mpesaResponse.getCheckoutRequestID());
+        txn.setMember(member);
+        txn.setAmount(amount);
+        txn.setType(TransactionType.CONTRIBUTION);
+        txn.setPeriod(period);
+        txn.setStatus(TransactionStatus.PENDING);
+        transactionRepository.save(txn);
+
+        return mpesaResponse;
+    }
+
+    @Override
+    @Transactional
+    public void addContribution(Long periodId, Long memberId, LocalDateTime paymentDate, BigDecimal amount) {
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ResourceNotFoundException("Member doesn't exist"));
+
+        ContributionPeriod period = periodRepository.findById(periodId)
+                .orElseThrow(() -> new ResourceNotFoundException("Period doesn't exist"));
+
 
         ContributionArrear contributionArrear = contributionArrearRepository.findByMemberAndPeriodAndIsPaid(member,
                 period, false);
@@ -59,7 +93,7 @@ public class ContributionServiceImpl implements ContributionService {
 
         SaccoSetups setups = saccoSetupRepository.findByStatus(SetupStatus.ACTIVE);
 
-        BigDecimal amountToRecord = contribution.getAmount();
+        BigDecimal amountToRecord = amount;
         if (amountToRecord == null || amountToRecord.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Invalid contribution amount");
         }
@@ -102,7 +136,7 @@ public class ContributionServiceImpl implements ContributionService {
 //        }
 
         // check if contribution is late and is not recorded
-        boolean isLate = contribution.getPaymentDate()
+        boolean isLate = paymentDate
                 .isAfter(period.getDeadline());
         boolean isRecorded = fineRepository.existsByMemberAndTypeAndReferenceId(member, FineTyp.LATE_PAYMENT, period.getId());
 
@@ -129,7 +163,7 @@ public class ContributionServiceImpl implements ContributionService {
         Contribution savedContribution = new Contribution();
         savedContribution.setMember(member);
         savedContribution.setPeriod(period);
-        savedContribution.setPaymentDate(contribution.getPaymentDate());
+        savedContribution.setPaymentDate(paymentDate);
         savedContribution.setLate(isLate);
 
         // EXACT PAYMENT
