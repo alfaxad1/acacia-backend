@@ -26,8 +26,16 @@ public class Transaction {
     private Member member;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "period_id", nullable = false)
+    @JoinColumn(name = "period_id")
     private ContributionPeriod period;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fine_id")
+    private Fine fine;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_id")
+    private Loan loan;
 
     // --- Financial Details ---
     @Column(nullable = false)

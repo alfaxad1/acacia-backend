@@ -1,6 +1,7 @@
 package com.example.acacia.contoller;
 
 import com.example.acacia.dto.LoanDto;
+import com.example.acacia.dto.StkPushResponse;
 import com.example.acacia.enums.LoanStatus;
 import com.example.acacia.enums.VoteDecision;
 import com.example.acacia.model.Loan;
@@ -8,6 +9,7 @@ import com.example.acacia.service.LoanService;
 import com.example.acacia.service.LoanVotingService;
 import com.example.acacia.utility.ResponseHandler;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -16,11 +18,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/loan")
+@Slf4j
 public class LoanController {
     private final LoanService loanService;
     private final LoanVotingService loanVotingService;
@@ -63,8 +68,17 @@ public class LoanController {
             @RequestParam Long loanId,
             @RequestParam BigDecimal amount
     ) {
-        loanService.repayLoan(loanId, amount);
-        return ResponseHandler.responseBuilder("loan repaid successfully", HttpStatus.OK, null);
+        try{
+            StkPushResponse mpesaResponse = loanService.initiateLoanPayment(loanId, amount);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("checkoutRequestId", mpesaResponse.getCheckoutRequestID());
+
+            return ResponseHandler.responseBuilder("STK push sent. Awaiting user payment confirmation", HttpStatus.CREATED, data);
+        }catch (Exception e){
+            log.error("Error when paying loan", e);
+            throw new RuntimeException("Error when paying loan", e);
+        }
     }
 
     @PostMapping("/appy-penalty")

@@ -12,15 +12,19 @@ import com.example.acacia.model.SaccoSetups;
 import com.example.acacia.repository.ContributionPeriodRepository;
 import com.example.acacia.repository.ContributionRepository;
 import com.example.acacia.repository.SaccoSetupRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +32,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ContributionPeriodServiceImpl implements ContributionPeriodService {
     private final ContributionPeriodRepository contributionPeriodRepository;
     private final SaccoSetupRepository saccoSetupRepository;
@@ -81,26 +86,47 @@ public class ContributionPeriodServiceImpl implements ContributionPeriodService 
                 .build();
     }
 
-    @Override
-    public void addPeriod(LocalDate day) {
+    @Scheduled(cron = "0 0 0 * * FRI")
+    @Transactional
+    public void generateContributionPeriods() {
         try {
-            SaccoSetups saccoSetups = saccoSetupRepository.findByStatus(SetupStatus.ACTIVE);
-
-            DayOfWeek contributionDay = saccoSetups.getContributionDay();
-
-            ContributionPeriod period = new ContributionPeriod();
-            if(contributionDay.equals(day.getDayOfWeek())){
-                period.setDate(day);
-            }else {
-                throw new RuntimeException("Invalid contribution day");
+            SaccoSetups setup = saccoSetupRepository.findByStatus(SetupStatus.ACTIVE);
+            if (setup == null) {
+                log.warn("No active Sacco setup found. Skipping period generation.");
+                return;
             }
-            LocalTime deadlineTime = saccoSetups.getDeadlineTime();
-            LocalDateTime deadline = day.plusDays(saccoSetups.getDaysToDeadline()).atTime(deadlineTime);
-            period.setDeadline(deadline);
-            period.setAmountRequired(saccoSetups.getContributionAmount());
-            contributionPeriodRepository.save(period);
-        }catch (Exception e){
-            throw new RuntimeException(e.getMessage());
+
+            DayOfWeek targetDay = setup.getContributionDay();
+            LocalDate today = LocalDate.now();
+
+            LocalDate currentWeekFriday = today.with(TemporalAdjusters.previousOrSame(targetDay));
+
+            LocalDate nextWeekFriday = currentWeekFriday.plusWeeks(1);
+
+            savePeriodIfMissing(currentWeekFriday, setup);
+            savePeriodIfMissing(nextWeekFriday, setup);
+
+        } catch (Exception e) {
+            log.error("Failed to generate contribution periods: {}", e.getMessage());
         }
+    }
+
+    private void savePeriodIfMissing(LocalDate date, SaccoSetups setup) {
+        if (contributionPeriodRepository.existsByDate(date)) {
+            log.info("Period for {} already exists, skipping.", date);
+            return;
+        }
+
+        ContributionPeriod period = new ContributionPeriod();
+        period.setDate(date);
+
+        LocalDateTime deadline = date.plusDays(setup.getDaysToDeadline())
+                .atTime(setup.getDeadlineTime());
+
+        period.setDeadline(deadline);
+        period.setAmountRequired(setup.getContributionAmount());
+
+        contributionPeriodRepository.save(period);
+        log.info("Successfully created new contribution period for {}", date);
     }
 }

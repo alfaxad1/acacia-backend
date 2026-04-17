@@ -6,6 +6,7 @@ import com.example.acacia.dto.*;
 import com.example.acacia.enums.*;
 import com.example.acacia.model.*;
 import com.example.acacia.repository.*;
+import com.example.acacia.utility.FormatPhone;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.Tuple;
 import jakarta.transaction.Transactional;
@@ -37,8 +38,9 @@ public class ContributionServiceImpl implements ContributionService {
     private final ContributionArrearRepository contributionArrearRepository;
     private final MpesaService mpesaService;
     private final TransactionRepository transactionRepository;
+    private final FormatPhone formatPhone;
 
-    public StkPushResponse initiateContribution(  Long memberId, Long periodId, BigDecimal amount) throws IOException {
+    public StkPushResponse initiateContribution(  Long memberId, Long periodId) throws IOException {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member doesn't exist"));
         log.info("Member was found");
@@ -52,10 +54,13 @@ public class ContributionServiceImpl implements ContributionService {
                     "Contribution already recorded for this period");
         }
 
+        SaccoSetups setups = saccoSetupRepository.findByStatus(SetupStatus.ACTIVE);
+        BigDecimal amount = setups.getContributionAmount();
+
         log.info("====Attempting stk push====");
         // 2. Trigger STK Push via MpesaService
         StkPushResponse mpesaResponse = mpesaService.stkPush(
-                formatPhoneNumber(member.getPhone()),
+                formatPhone.formatPhoneNumber(member.getPhone()),
                 amount.toString(),
                 "CONTRIBUTION-" + member.getMemberNumber(),
                 "Weekly Contribution"
@@ -73,22 +78,6 @@ public class ContributionServiceImpl implements ContributionService {
         transactionRepository.save(txn);
 
         return mpesaResponse;
-    }
-
-    public String formatPhoneNumber(String phoneNumber) {
-        if (phoneNumber == null) return null;
-
-        String cleanNumber = phoneNumber.replaceAll("\\D", "");
-
-        if (cleanNumber.startsWith("0")) {
-            return "254" + cleanNumber.substring(1);
-        } else if (cleanNumber.startsWith("7") || cleanNumber.startsWith("1")) {
-            return "254" + cleanNumber;
-        } else if (cleanNumber.startsWith("254")) {
-            return cleanNumber;
-        }
-
-        return cleanNumber;
     }
 
     @Override

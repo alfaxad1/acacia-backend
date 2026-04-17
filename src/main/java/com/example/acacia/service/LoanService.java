@@ -3,9 +3,11 @@ package com.example.acacia.service;
 import com.example.acacia.Exception.ResourceNotFoundException;
 import com.example.acacia.dto.LoanDto;
 import com.example.acacia.dto.LoanEligibilityResult;
+import com.example.acacia.dto.StkPushResponse;
 import com.example.acacia.enums.*;
 import com.example.acacia.model.*;
 import com.example.acacia.repository.*;
+import com.example.acacia.utility.FormatPhone;
 import jakarta.persistence.Tuple;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,9 @@ public class LoanService {
     private final CreditScoreService creditScoreService;
     private final SaccoSetupRepository saccoSetupRepository;
     private final EmailService emailService;
+    private final MpesaService mpesaService;
+    private final FormatPhone formatPhone;
+    private final TransactionRepository transactionRepository;
 
     @Transactional
     public void requestLoan(
@@ -224,17 +229,8 @@ public class LoanService {
     @Transactional
     public void repayLoan(Long loanId, BigDecimal amount) {
 
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
-
-        if (loan.getStatus() != LoanStatus.DISBURSED
-                && loan.getStatus() != LoanStatus.DEFAULTED) {
-            throw new IllegalStateException("Loan is not active");
-        }
 
         List<LoanRepayment> repayments =
                 loanRepaymentRepository.findByLoan(loan);
@@ -324,6 +320,49 @@ public class LoanService {
                 dtoList.add(dto);
             }
             return dtoList;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public StkPushResponse initiateLoanPayment(Long loanId, BigDecimal amount) {
+        try{
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                log.error("Loan not found");
+                throw new IllegalArgumentException("Amount must be greater than zero");
+            }
+
+            Loan loan = loanRepository.findById(loanId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
+
+            if (loan.getStatus() != LoanStatus.DISBURSED
+                    && loan.getStatus() != LoanStatus.DEFAULTED) {
+                log.error("Loan is not active");
+                throw new IllegalStateException("Loan is not active");
+            }
+            log.info("Loan found: {}", loan.getId());
+
+            Member member = loan.getMember();
+
+            log.info("====Attempting stk push====");
+            StkPushResponse mpesaResponse = mpesaService.stkPush(
+                    formatPhone.formatPhoneNumber(member.getPhone()),
+                    amount.toString(),
+                    "LOAN_" + member.getMemberNumber(),
+                    "LOAN_" + loan.getId()
+            );
+
+            Transaction txn = new Transaction();
+            txn.setCheckoutRequestID(mpesaResponse.getCheckoutRequestID());
+            txn.setMember(member);
+            txn.setAmount(amount);
+            txn.setLoan(loan);
+            txn.setType(TransactionType.LOAN);
+            txn.setStatus(TransactionStatus.PENDING);
+            transactionRepository.save(txn);
+
+            return mpesaResponse;
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

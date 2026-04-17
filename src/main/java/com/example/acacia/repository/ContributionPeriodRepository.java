@@ -11,5 +11,5 @@ import java.util.List;
 @Repository
 public interface ContributionPeriodRepository extends JpaRepository<ContributionPeriod,Long> {
     ContributionPeriod findByDate(LocalDate localDate);
-
+    boolean existsByDate(LocalDate date);
 }

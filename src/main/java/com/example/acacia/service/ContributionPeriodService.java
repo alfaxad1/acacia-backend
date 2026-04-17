@@ -10,5 +10,5 @@ import java.util.List;
 public interface ContributionPeriodService {
     Response<List<ContributionPeriodDto>> getContributionPeriods(Pageable pageable);
 
-    void addPeriod(LocalDate day);
+    void generateContributionPeriods();
 }

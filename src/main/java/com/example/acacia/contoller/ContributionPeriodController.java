@@ -36,8 +36,8 @@ public class ContributionPeriodController {
     }
 
     @PostMapping()
-    public ResponseEntity<?> save(@RequestBody ContributionPeriodRequest request) {
-        contributionPeriodService.addPeriod(request.getDate());
+    public ResponseEntity<?> save() {
+        contributionPeriodService.generateContributionPeriods();
         return ResponseHandler.responseBuilder("period added successfully", HttpStatus.CREATED, null);
     }
 

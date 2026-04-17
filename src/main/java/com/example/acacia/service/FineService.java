@@ -3,19 +3,23 @@ package com.example.acacia.service;
 import com.example.acacia.Exception.ResourceNotFoundException;
 import com.example.acacia.dto.FineDto;
 import com.example.acacia.dto.FineRequest;
-import com.example.acacia.enums.FineStatus;
-import com.example.acacia.enums.FineTyp;
-import com.example.acacia.enums.SetupStatus;
+import com.example.acacia.dto.StkPushResponse;
+import com.example.acacia.enums.*;
 import com.example.acacia.model.Fine;
 import com.example.acacia.model.Member;
 import com.example.acacia.model.SaccoSetups;
+import com.example.acacia.model.Transaction;
 import com.example.acacia.repository.FineRepository;
 import com.example.acacia.repository.MemberRepository;
 import com.example.acacia.repository.SaccoSetupRepository;
+import com.example.acacia.repository.TransactionRepository;
+import com.example.acacia.utility.FormatPhone;
 import jakarta.persistence.Tuple;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -23,11 +27,15 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FineService {
     private final FineRepository fineRepository;
     private final SaccoSetupRepository setupRepository;
     private final MemberRepository memberRepository;
     private final EmailService emailService;
+    private final MpesaService mpesaService;
+    private final TransactionRepository transactionRepository;
+    private final FormatPhone formatPhone;
 
     public void recordFine(FineRequest fineRequest) {
         try{
@@ -52,6 +60,36 @@ public class FineService {
 
             emailService.sendMail(member.getEmail(), "FINE RECORD", "A fine has been recorded for you because of "+ fineRequest.getType());
 
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public StkPushResponse initiateFinePayment(Long fineId) throws IOException {
+        try{
+            Fine fine = fineRepository.findById(fineId).orElseThrow(() -> new ResourceNotFoundException("Fine doesn't exist"));
+            log.info("FIne found: {}", fine.getId());
+
+            Member member = fine.getMember();
+
+            log.info("====Attempting stk push====");
+            StkPushResponse mpesaResponse = mpesaService.stkPush(
+                    formatPhone.formatPhoneNumber(member.getPhone()),
+                    fine.getAmount().toString(),
+                    "FINE-" + member.getMemberNumber(),
+                    fine.getType()+"_FINE"
+            );
+
+            Transaction txn = new Transaction();
+            txn.setCheckoutRequestID(mpesaResponse.getCheckoutRequestID());
+            txn.setMember(member);
+            txn.setAmount(fine.getAmount());
+            txn.setFine(fine);
+            txn.setType(TransactionType.FINE);
+            txn.setStatus(TransactionStatus.PENDING);
+            transactionRepository.save(txn);
+
+            return mpesaResponse;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
