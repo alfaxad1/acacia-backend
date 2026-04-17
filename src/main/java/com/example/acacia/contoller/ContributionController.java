@@ -35,7 +35,7 @@ public class ContributionController {
             @RequestParam Long memberId,
             @RequestParam BigDecimal amount
     ) throws IOException {
-        contributionService.initiateContribution(periodId, memberId, amount);
+        contributionService.initiateContribution(memberId, periodId, amount);
         return ResponseHandler.responseBuilder("contribution recorded successfully", HttpStatus.CREATED, null);
     }
 

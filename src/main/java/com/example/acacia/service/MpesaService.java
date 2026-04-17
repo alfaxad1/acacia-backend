@@ -4,6 +4,7 @@ import com.example.acacia.config.MpesaConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MpesaService {
 
     private final MpesaConfig config;
@@ -79,6 +81,8 @@ public class MpesaService {
         String json = objectMapper.writeValueAsString(requestBody);
 
         String url = config.getBaseUrl() + "/mpesa/stkpush/v1/processrequest";
+        log.info("STK url: {}", url);
+
 
         Request request = new Request.Builder()
                 .url(url)
@@ -89,7 +93,9 @@ public class MpesaService {
 
         try (Response response = new OkHttpClient().newCall(request).execute()) {
             String body = response.body().string();
+            log.info("STK body: {}", body);
             if (!response.isSuccessful()) {
+                log.error("STK response code: {}", response.body().string());
                 throw new RuntimeException("STK Push failed: " + body);
             }
             return objectMapper.readValue(body, StkPushResponse.class);

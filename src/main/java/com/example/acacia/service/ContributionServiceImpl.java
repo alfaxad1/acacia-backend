@@ -41,15 +41,19 @@ public class ContributionServiceImpl implements ContributionService {
     public StkPushResponse initiateContribution(  Long memberId, Long periodId, BigDecimal amount) throws IOException {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member doesn't exist"));
+        log.info("Member was found");
 
         ContributionPeriod period = periodRepository.findById(periodId)
                 .orElseThrow(() -> new ResourceNotFoundException("Period doesn't exist"));
+        log.info("Period was found");
 
         if (contributionRepository.existsByMemberAndPeriod(member, period)) {
             throw new IllegalStateException(
                     "Contribution already recorded for this period");
         }
 
+
+        log.info("====Attempting stk push====");
         // 2. Trigger STK Push via MpesaService
         StkPushResponse mpesaResponse = mpesaService.stkPush(
                 member.getPhone(),
