@@ -59,6 +59,8 @@ public class MpesaService {
     public StkPushResponse stkPush(String phoneNumber, String amount,
                                    String accountReference, String transactionDesc) throws IOException, java.io.IOException {
 
+        log.info("Formated phone {}", phoneNumber);
+
         String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
         String password = Base64.getEncoder().encodeToString(
                 (config.getShortcode() + config.getPasskey() + timestamp).getBytes()
