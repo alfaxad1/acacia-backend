@@ -28,40 +28,22 @@ public class MpesaCallbackController {
     private final MemberRepository memberRepository;
     private final ContributionService contributionService;
 
-    @PostMapping("/test-stk")
-    public ResponseEntity<?> testStk(@RequestParam String phone, @RequestParam String amount) {
-        try {
-            System.out.println("=== Starting STK Push Test ===");
-            System.out.println("Phone: " + phone + " | Amount: " + amount);
-
-            StkPushResponse response = mpesaService.stkPush(
-                    phone,
-                    amount,
-                    "TEST-" + System.currentTimeMillis(),
-                    "Sandbox Test Payment"
-            );
-
-            System.out.println("STK Push Successful!");
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body("Failed: " + e.getMessage());
-        }
-    }
-
     @PostMapping("/stk/callback")
     public ResponseEntity<Map<String, Object>> stkCallback(@RequestBody StkCallbackPayload payload) {
+        log.info("STK CALLBACK RECEIVED");
         var callbackData = payload.getBody().getStkCallback();
         String checkoutId = callbackData.getCheckoutRequestID();
 
         Transaction txn = transactionRepository.findByCheckoutRequestID(checkoutId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found"));
-
+        log.info("Callback CheckoutID: {}", checkoutId);
+        log.info("Saved CheckoutID: {}", txn.getCheckoutRequestID());
+        log.info("ResultCode: {}", callbackData.getResultCode());
         if (callbackData.getResultCode() == 0 && txn.getType().equals(TransactionType.CONTRIBUTION)) {
             txn.setStatus(TransactionStatus.COMPLETED);
             Member member = txn.getMember();
 
+            log.info("Starting to record contribution for member: {}", member.getId());
             contributionService.addContribution(
                     txn.getPeriod().getId(),
                     member.getId(),

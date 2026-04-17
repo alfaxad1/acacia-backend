@@ -9,6 +9,7 @@ import com.example.acacia.service.ContributionPenaltyJobService;
 import com.example.acacia.service.ContributionService;
 import com.example.acacia.utility.ResponseHandler;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -25,6 +26,7 @@ import java.util.List;
 @CrossOrigin
 @RequestMapping("/api/v1/contribution")
 @RequiredArgsConstructor
+@Slf4j
 public class ContributionController {
     private final ContributionService contributionService;
     private final ContributionPenaltyJobService penaltyJobService;
@@ -35,8 +37,13 @@ public class ContributionController {
             @RequestParam Long memberId,
             @RequestParam BigDecimal amount
     ) throws IOException {
-        contributionService.initiateContribution(memberId, periodId, amount);
-        return ResponseHandler.responseBuilder("contribution recorded successfully", HttpStatus.CREATED, null);
+        try{
+            contributionService.initiateContribution(memberId, periodId, amount);
+            return ResponseHandler.responseBuilder("contribution recorded successfully", HttpStatus.CREATED, null);
+        }catch (Exception e){
+            log.error("Error saving contribution", e);
+            throw new RuntimeException("Error saving contribution", e);
+        }
     }
 
     @GetMapping

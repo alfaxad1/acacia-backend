@@ -78,21 +78,17 @@ public class ContributionServiceImpl implements ContributionService {
     public String formatPhoneNumber(String phoneNumber) {
         if (phoneNumber == null) return null;
 
-        // Remove all non-digit characters (spaces, dashes, plus signs)
         String cleanNumber = phoneNumber.replaceAll("\\D", "");
 
         if (cleanNumber.startsWith("0")) {
-            // Replace leading 0 with 254
             return "254" + cleanNumber.substring(1);
         } else if (cleanNumber.startsWith("7") || cleanNumber.startsWith("1")) {
-            // If it starts with 7 or 1 (9 digits), add 254
             return "254" + cleanNumber;
         } else if (cleanNumber.startsWith("254")) {
-            // Already in the correct format
             return cleanNumber;
         }
 
-        return cleanNumber; // Return as is if it doesn't match known patterns
+        return cleanNumber;
     }
 
     @Override
