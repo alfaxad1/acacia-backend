@@ -41,8 +41,6 @@ public class MpesaCallbackController {
         Transaction txn = transactionRepository.findByCheckoutRequestID(checkoutId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found"));
         log.info("Callback CheckoutID: {}", checkoutId);
-        log.info("Saved CheckoutID: {}", txn.getCheckoutRequestID());
-        log.info("ResultCode: {}", callbackData.getResultCode());
         if (callbackData.getResultCode() == 0) {
             if(txn.getType().equals(TransactionType.CONTRIBUTION)){
                 txn.setStatus(TransactionStatus.COMPLETED);
@@ -59,13 +57,11 @@ public class MpesaCallbackController {
             } else if (txn.getType().equals(TransactionType.FINE)) {
                 txn.setStatus(TransactionStatus.COMPLETED);
 
-                log.info("Starting to record fine...");
                 fineService.settleFine(txn.getFine().getId());
                 log.info("Fine settled successfully");
             } else if (txn.getType().equals(TransactionType.LOAN)) {
                 txn.setStatus(TransactionStatus.COMPLETED);
 
-                log.info("Starting to save loan...");
                 loanService.repayLoan(txn.getLoan().getId(), txn.getAmount());
                 log.info("Loan saved...");
             }

@@ -17,6 +17,7 @@ import java.time.LocalDate;
 public class FineDto {
     private Long id;
     private String memberName;
+    private Long memberId;
     private BigDecimal amount;
     private LocalDate  date;
     private FineStatus status;

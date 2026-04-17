@@ -20,9 +20,9 @@ public interface FineRepository extends JpaRepository<Fine, Long> {
     @Query("select count(f) from Fine f where f.member = :member and f.status = :fineStatus")
     int countUnpaid(Member member, FineStatus fineStatus);
 
-    @Query("select f.id, f.member.fullName, f.amount, f.fineDate, " +
-            "f.status, f.type, f.paidDate " +
-            "from Fine f " +
+    @Query("select f.id, m.fullName, f.amount, f.fineDate, " +
+            "f.status, f.type, f.paidDate,m.id " +
+            "from Fine f join f.member m " +
             "where f.status = :status")
     List<Tuple> findFines(FineStatus status);
 

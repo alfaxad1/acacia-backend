@@ -121,6 +121,7 @@ public class FineService {
                         .status(fine.get(4, FineStatus.class))
                         .type(fine.get(5, FineTyp.class))
                         .paidDate(fine.get(6, LocalDate.class))
+                        .memberId(fine.get(7, Long.class))
                         .build();
                 finesList.add(dto);
             }
