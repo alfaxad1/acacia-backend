@@ -6,55 +6,29 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4 # Updated to v4
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4 # Updated to v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Build with Maven
-        run: mvn clean package -DskipTests
-
-      # 1. STOP the service and remove the jar with sudo
-      - name: Pre-deploy (Stop and Clean)
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            echo "${{ secrets.VPS_PASSWORD }}" | sudo -S systemctl stop acacia.service || true
-            echo "${{ secrets.VPS_PASSWORD }}" | sudo -S rm -f /home/admin/acacia.co.ke/acacia-0.0.1-SNAPSHOT.jar
+            # Navigate to project directory
+            cd /home/admin/acacia.co.ke/
 
-      # 2. UPLOAD the new jar
-      - name: Copy JAR to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "target/acacia-0.0.1-SNAPSHOT.jar"
-          target: "/home/admin/acacia.co.ke/"
-          strip_components: 1
+            # Pull latest changes
+            git pull origin main
 
-      # 3. SET PERMISSIONS and START the service
-      - name: Post-deploy (Start Service)
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            # Set ownership so the service can read it
-            sudo chown admin:admin /home/admin/acacia.co.ke/acacia-0.0.1-SNAPSHOT.jar
-            sudo systemctl restart acacia.service
-            # Check if it actually started
+            # Build the application on the server
+            mvn clean package -DskipTests
+
+            # Restart the service
+            echo "${{ secrets.VPS_PASSWORD }}" | sudo -S systemctl restart acacia.service
+            
+            # Verify status
             sudo systemctl is-active acacia.service
-            echo "Deployment complete."
+            echo "Deployment successful."
