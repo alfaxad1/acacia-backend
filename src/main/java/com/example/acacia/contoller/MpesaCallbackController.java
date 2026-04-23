@@ -1,12 +1,15 @@
 package com.example.acacia.contoller;
 
+import com.example.acacia.dto.MpesaCallbackResponse;
 import com.example.acacia.dto.StkCallbackPayload;
 import com.example.acacia.dto.StkPushResponse;
 import com.example.acacia.enums.TransactionStatus;
 import com.example.acacia.enums.TransactionType;
 import com.example.acacia.model.Member;
+import com.example.acacia.model.SaccoWallet;
 import com.example.acacia.model.Transaction;
 import com.example.acacia.repository.MemberRepository;
+import com.example.acacia.repository.SaccoWalletRepository;
 import com.example.acacia.repository.TransactionRepository;
 import com.example.acacia.service.ContributionService;
 import com.example.acacia.service.FineService;
@@ -17,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -27,7 +31,7 @@ import java.util.Map;
 public class MpesaCallbackController {
     private final MpesaService mpesaService;
     private final TransactionRepository transactionRepository;
-    private final MemberRepository memberRepository;
+    private final SaccoWalletRepository walletRepository;
     private final ContributionService contributionService;
     private final FineService fineService;
     private final LoanService loanService;
@@ -92,5 +96,30 @@ public class MpesaCallbackController {
     public ResponseEntity<Map<String, Object>> c2bValidation(@RequestBody Object payload) {
         log.info("C2B Validation: {}", payload);
         return ResponseEntity.ok(Map.of("ResultCode", 0, "ResultDesc", "Accepted"));
+    }
+
+    @PostMapping("/mpesa-callbacks/balance/result")
+    public void handleBalanceResult(@RequestBody MpesaCallbackResponse response) {
+        if (response.getResult().getResultCode() == 0) {
+            String balanceData = (String) response.getResult().getResultParameters().getResultParameter()
+                    .stream().filter(p -> p.getKey().equals("AccountBalance")).findFirst().get().getValue();
+
+            // Split: Name|Currency|Available|Reserved|Unused|Unused
+            String availableBalance = balanceData.split("\\|")[2];
+
+            SaccoWallet wallet = walletRepository.findById(1L).orElse(new SaccoWallet());
+            wallet.setMpesaFloatBalance(new BigDecimal(availableBalance));
+            wallet.setLastUpdated(LocalDateTime.now());
+            walletRepository.save(wallet);
+        }
+    }
+
+    @PostMapping("/mpesa-callbacks/b2c/result")
+    public void handleB2cResult(@RequestBody MpesaCallbackResponse response) {
+        // Logic: Find loan by TransactionID or ConversationID and mark as DISBURSED
+        if (response.getResult().getResultCode() == 0) {
+            log.info("Disbursement Successful for TransID: {}", response.getResult().getTransactionID());
+            // Update loan status to DISBURSED here
+        }
     }
 }

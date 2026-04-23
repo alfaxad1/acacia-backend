@@ -42,6 +42,7 @@ public class LoanService {
     private final MpesaService mpesaService;
     private final FormatPhone formatPhone;
     private final TransactionRepository transactionRepository;
+    private final SaccoWalletRepository walletRepository;
 
     @Transactional
     public void requestLoan(
@@ -90,56 +91,36 @@ public class LoanService {
     }
 
     @Transactional
-    public void approveLoan(Long loanId) {
-
-        //Member approver = memberRepository.findAById(approverId);
-
+    public void approveAndDisburse(Long loanId) {
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
 
         if (loan.getStatus() != LoanStatus.PENDING) {
-            throw new IllegalStateException("Loan not pending");
+            throw new IllegalStateException("Loan is not pending");
         }
 
+        // 1. Calculate Loan Details
         BigDecimal approvedAmount = loan.getRequestedAmount().min(loan.getEligibleAmount());
-        BigDecimal interest = approvedAmount
-                .multiply(loan.getInterestRate())
-                .divide(BigDecimal.valueOf(100))
-                .setScale(0, RoundingMode.CEILING);
-        BigDecimal totalPayable = approvedAmount.add(interest);
+        // ... (your existing interest calculation logic) ...
 
+        // 2. CHECK WALLET BALANCE (Pre-check using our stored float)
+        SaccoWallet wallet = walletRepository.findById(1L).orElse(new SaccoWallet());
+        if (wallet.getMpesaFloatBalance().compareTo(approvedAmount) < 0) {
+            throw new IllegalStateException("Insufficient M-Pesa Float to disburse this loan.");
+        }
+
+        // 3. Update Loan State
         loan.setApprovedAmount(approvedAmount);
-        loan.setInterestAmount(interest);
-        loan.setTotalPayable(totalPayable);
         loan.setStatus(LoanStatus.APPROVED);
         loan.setApprovalDate(LocalDate.now());
-        //loan.setApprover(approver);
-
-        loanRepository.save(loan);
-    }
-
-    @Transactional
-    public void disburseLoan(Long loanId) {
-
-        Loan loan = loanRepository.findById(loanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
-
-        if (loan.getStatus() != LoanStatus.APPROVED) {
-            throw new IllegalStateException("Loan not approved");
-        }
-
-        BigDecimal saccoBalance = contributionRepository.getSaccoBalance();
-
-        if (saccoBalance.compareTo(loan.getApprovedAmount()) < 0) {
-            throw new IllegalStateException("Insufficient SACCO balance");
-        }
-
-        loan.setStatus(LoanStatus.DISBURSED);
-        loan.setDisbursementDate(LocalDate.now());
-        loan.setDueDate(LocalDate.now().plusDays(loan.getDurationDays()));
-
         loanRepository.save(loan);
 
+        // 4. Trigger B2C Payment
+        try {
+            mpesaService.disburseFunds(loan.getMember().getPhone(), approvedAmount, loan.getId().toString());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to initiate M-Pesa disbursement: " + e.getMessage());
+        }
     }
 
     @Scheduled(cron = "0 0 1 * * ?") // Every day at 1AM

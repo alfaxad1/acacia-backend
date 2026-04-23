@@ -59,7 +59,7 @@ public class LoanController {
     public ResponseEntity<?> disburseLoan(
             @RequestParam Long loanId
     ) {
-        loanService.disburseLoan(loanId);
+        loanService.approveAndDisburse(loanId);
         return ResponseHandler.responseBuilder("loan disbursed successfully", HttpStatus.OK, null);
     }
 

@@ -20,4 +20,11 @@ public class MpesaConfig {
     private String stkCallbackUrl;
     private String c2bConfirmationUrl;
     private String c2bValidationUrl;
+    private String initiatorName;
+    private String b2cSecurityCredential;
+    private String b2cShortcode;
+    private String b2cResultUrl;
+    private String b2cTimeoutUrl;
+    private String balanceResultUrl;
+    private String balanceTimeoutUrl;
 }

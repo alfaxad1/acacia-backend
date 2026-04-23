@@ -39,6 +39,12 @@ public class Loan{
 
     private BigDecimal totalPayable;
 
+    private BigDecimal transactionCost;
+
+    private BigDecimal taxAmount;
+
+    private BigDecimal c2bTax;
+
     private LocalDate requestDate;
 
     private int durationDays;
