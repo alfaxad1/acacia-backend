@@ -43,7 +43,7 @@ public class Loan{
 
     private BigDecimal taxAmount;
 
-    private BigDecimal c2bTax;
+    private BigDecimal c2bFee;
 
     private LocalDate requestDate;
 

@@ -99,24 +99,25 @@ public class LoanService {
             throw new IllegalStateException("Loan is not pending");
         }
 
-        // 1. Calculate Loan Details
         BigDecimal approvedAmount = loan.getRequestedAmount().min(loan.getEligibleAmount());
-        // ... (your existing interest calculation logic) ...
+        BigDecimal interest = approvedAmount
+                .multiply(loan.getInterestRate())
+                .divide(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.CEILING);
 
-        // 2. CHECK WALLET BALANCE (Pre-check using our stored float)
         SaccoWallet wallet = walletRepository.findById(1L).orElse(new SaccoWallet());
         if (wallet.getMpesaFloatBalance().compareTo(approvedAmount) < 0) {
             throw new IllegalStateException("Insufficient M-Pesa Float to disburse this loan.");
         }
 
-        // 3. Update Loan State
         loan.setApprovedAmount(approvedAmount);
         loan.setStatus(LoanStatus.APPROVED);
+        loan.setInterestAmount(interest);
         loan.setApprovalDate(LocalDate.now());
         loanRepository.save(loan);
 
-        // 4. Trigger B2C Payment
         try {
+            log.info("About to disburse funds...");
             mpesaService.disburseFunds(loan.getMember().getPhone(), approvedAmount, loan.getId().toString());
         } catch (Exception e) {
             throw new RuntimeException("Failed to initiate M-Pesa disbursement: " + e.getMessage());

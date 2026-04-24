@@ -1,62 +1,47 @@
 package com.example.acacia.model;
 
 import com.example.acacia.enums.TransactionStatus;
-import com.example.acacia.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "transactions")
+@Table(name = "b2c_transactions")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Transaction {
-
+public class B2cTransactions {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    // --- Relationship ---
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
-    private Member member;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "period_id")
-    private ContributionPeriod period;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "fine_id")
-    private Fine fine;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "loan_id")
     private Loan loan;
 
-    @Column(nullable = false)
-    private BigDecimal amount;
-
-    private String description;
-
-    @Column(unique = true)
-    private String checkoutRequestID;
-    @Column(unique = true)
-    private String merchantRequestID;
-
-    @Column(unique = true)
-    private String mpesaReceiptNumber;
-
     @Enumerated(EnumType.STRING)
     private TransactionStatus status;
 
-    @Enumerated(EnumType.STRING)
-    private TransactionType type;
+    @Column(unique = true)
+    private String conversationId;
 
-    private String phoneNumber;
+    @Column(unique = true)
+    private String originatorConversationId;
+
+    @Column(unique = true)
+    private String transactionId;
+
+    private BigDecimal amount;
+
+    private BigDecimal fee;
+
+    private String recipientPhone;
+
+    private String errorReason;
 
     private LocalDateTime createdAt;
 

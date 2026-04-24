@@ -1,6 +1,14 @@
 package com.example.acacia.service;
 
 import com.example.acacia.config.MpesaConfig;
+import com.example.acacia.enums.LoanStatus;
+import com.example.acacia.enums.TransactionStatus;
+import com.example.acacia.model.B2cTransactions;
+import com.example.acacia.model.Loan;
+import com.example.acacia.model.SaccoWallet;
+import com.example.acacia.repository.B2cTransactionsRepository;
+import com.example.acacia.repository.LoanRepository;
+import com.example.acacia.repository.SaccoWalletRepository;
 import com.example.acacia.utility.FormatPhone;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.io.IOException;
@@ -23,6 +31,9 @@ import java.util.Date;
 @RequiredArgsConstructor
 @Slf4j
 public class MpesaService {
+    private final LoanRepository loanRepository;
+    private final B2cTransactionsRepository b2cTransactionsRepository;
+    private final SaccoWalletRepository walletRepository;
 
     private final MpesaConfig config;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -126,6 +137,7 @@ public class MpesaService {
     }
 
     public void disburseFunds(String phoneNumber, BigDecimal amount, String loanId) throws Exception {
+        log.info("Starting funds disbursement...");
         B2CRequest requestBody = B2CRequest.builder()
                 .initiatorName(config.getInitiatorName())
                 .securityCredential(config.getB2cSecurityCredential())
@@ -139,10 +151,38 @@ public class MpesaService {
                 .occasion("Loan Disbursement")
                 .build();
 
-        sendMpesaRequest(config.getBaseUrl() + "/mpesa/b2c/v1/paymentrequest", requestBody);
+        Loan loan = loanRepository.findById(Long.parseLong(loanId)).get();
+
+        B2cTransactions txn = new B2cTransactions();
+        txn.setAmount(amount);
+        txn.setLoan(loan);
+        txn.setRecipientPhone(phoneNumber);
+        txn.setStatus(TransactionStatus.PENDING);
+        B2cTransactions savedTxn = b2cTransactionsRepository.save(txn);
+
+        try {
+            log.info("Sending request to mpesa...");
+            JsonNode mpesaResponse = sendMpesaRequest(config.getBaseUrl() + "/mpesa/b2c/v1/paymentrequest", requestBody);
+            if(mpesaResponse.has("ConversationID")){
+                String conversationId = mpesaResponse.get("ConversationID").asText();
+                String originConversationId = mpesaResponse.get("OriginatorConversationID").asText();
+
+                savedTxn.setConversationId(conversationId);
+                savedTxn.setOriginatorConversationId(originConversationId);
+                b2cTransactionsRepository.save(savedTxn);
+
+                log.info("Transaction updated with ConversationID: {}", conversationId);
+            }
+        } catch (Exception e) {
+            log.error("Disbursement failed: {}", e.getMessage());
+            savedTxn.setStatus(TransactionStatus.FAILED);
+            b2cTransactionsRepository.save(savedTxn);
+            throw new RuntimeException(e);
+        }
+
     }
 
-    private void sendMpesaRequest(String url, Object body) throws Exception {
+    private JsonNode sendMpesaRequest(String url, Object body) throws Exception {
         String json = objectMapper.writeValueAsString(body);
         Request request = new Request.Builder()
                 .url(url)
@@ -151,7 +191,14 @@ public class MpesaService {
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new RuntimeException(response.body().string());
+            String responseBodyString = response.body() != null ? response.body().string() : "{}";
+            log.info("Mpesa Response: {}", responseBodyString);
+
+            if (!response.isSuccessful()) {
+                throw new RuntimeException("Mpesa API error: " + responseBodyString);
+            }
+
+            return objectMapper.readTree(responseBodyString);
         }
     }
 
@@ -177,4 +224,49 @@ public class MpesaService {
         sendMpesaRequest(config.getBaseUrl() + "/mpesa/b2c/v1/paymentrequest", requestBody);
     }
 
+    public void processb2cCallback(String conversationId, String transactionId, MpesaCallbackResponse.ResultParameters resultParameters, Integer resultCode, String resultDesc) {
+        try {
+            B2cTransactions txn = b2cTransactionsRepository.findByConversationId(((conversationId)));
+            if(txn != null){
+                if(resultCode == 0){
+                    BigDecimal afterBalance = resultParameters.getResultParameter().stream()
+                            .filter(p -> "B2CWorkingAccountAvailableFunds".equals(p.getKey()))
+                            .findFirst()
+                            .map(p -> new BigDecimal(String.valueOf(p.getValue())))
+                            .orElse(BigDecimal.ZERO);
+
+                    SaccoWallet wallet = walletRepository.findById(1L).get();
+                    BigDecimal beforeBalance = wallet.getMpesaFloatBalance();
+
+                    BigDecimal totalDeducted = beforeBalance.subtract(afterBalance);
+                    BigDecimal fee = totalDeducted.subtract(txn.getAmount());
+
+                    txn.setFee(fee);
+                    txn.setStatus(TransactionStatus.COMPLETED);
+                    txn.setTransactionId(transactionId);
+
+                    Loan loan = loanRepository.findById(txn.getLoan().getId())
+                            .orElseThrow(()-> new RuntimeException("Loan no loan found with that conversationID"));
+
+                    BigDecimal interest = loan.getInterestAmount();
+                    BigDecimal totalAMount = loan.getApprovedAmount().add(interest).add(fee);
+                    BigDecimal c2bFee = totalAMount.multiply(BigDecimal.valueOf(0.0055));
+
+                    loan.setC2bFee(c2bFee);
+                    loan.setTotalPayable(totalAMount.add(c2bFee));
+                    loan.setStatus(LoanStatus.DISBURSED);
+                    loan.setTransactionCost(fee);
+                    loanRepository.save(loan);
+                }
+                else {
+                    log.warn("B2C Disbursement failed for ConvID {}: {}", conversationId, resultDesc);
+                    txn.setStatus(TransactionStatus.FAILED);
+                    txn.setErrorReason(resultDesc);
+                }
+                b2cTransactionsRepository.save(txn);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

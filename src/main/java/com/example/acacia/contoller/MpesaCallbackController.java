@@ -2,19 +2,20 @@ package com.example.acacia.contoller;
 
 import com.example.acacia.dto.MpesaCallbackResponse;
 import com.example.acacia.dto.StkCallbackPayload;
-import com.example.acacia.dto.StkPushResponse;
 import com.example.acacia.enums.TransactionStatus;
 import com.example.acacia.enums.TransactionType;
+import com.example.acacia.model.B2cTransactions;
 import com.example.acacia.model.Member;
 import com.example.acacia.model.SaccoWallet;
 import com.example.acacia.model.Transaction;
-import com.example.acacia.repository.MemberRepository;
+import com.example.acacia.repository.B2cTransactionsRepository;
 import com.example.acacia.repository.SaccoWalletRepository;
 import com.example.acacia.repository.TransactionRepository;
 import com.example.acacia.service.ContributionService;
 import com.example.acacia.service.FineService;
 import com.example.acacia.service.LoanService;
 import com.example.acacia.service.MpesaService;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,7 @@ public class MpesaCallbackController {
     private final ContributionService contributionService;
     private final FineService fineService;
     private final LoanService loanService;
+    private final B2cTransactionsRepository b2cTransactionsRepository;
 
     @PostMapping("/stk/callback")
     public ResponseEntity<Map<String, Object>> stkCallback(@RequestBody StkCallbackPayload payload) {
@@ -113,13 +115,47 @@ public class MpesaCallbackController {
             walletRepository.save(wallet);
         }
     }
+    @PostMapping("/mpesa-callbacks/balance/timeout")
+    public ResponseEntity<?> handleBalanceTimeout(@RequestBody JsonNode timeoutResponse) {
+        log.warn("M-PESA Balance Query Timed Out: {}", timeoutResponse.toString());
+        return ResponseEntity.ok("Timeout Received");
+    }
 
     @PostMapping("/mpesa-callbacks/b2c/result")
-    public void handleB2cResult(@RequestBody MpesaCallbackResponse response) {
-        // Logic: Find loan by TransactionID or ConversationID and mark as DISBURSED
-        if (response.getResult().getResultCode() == 0) {
-            log.info("Disbursement Successful for TransID: {}", response.getResult().getTransactionID());
-            // Update loan status to DISBURSED here
+    public ResponseEntity<?> handleB2cResult(@RequestBody MpesaCallbackResponse response) {
+       try{
+           log.info("Mpesa callback received. Response: {}", response.toString());
+           mpesaService.processb2cCallback(
+                   response.getResult().getConversationID(),
+                   response.getResult().getTransactionID(),
+                   response.getResult().getResultParameters(),
+                   response.getResult().getResultCode(),
+                   response.getResult().getResultDesc()
+           );
+           return ResponseEntity.ok(Map.of("ResultCode", 0, "ResultDesc", "Accepted"));
+       } catch (Exception e) {
+           throw new RuntimeException(e);
+       }
+    }
+
+    @PostMapping("/mpesa-callbacks/b2c/timeout")
+    public ResponseEntity<?> handleB2cTimeout(@RequestBody JsonNode timeoutResponse) {
+        log.warn("M-PESA B2C TIMEOUT RECEIVED: {}", timeoutResponse.toString());
+
+        String conversationId = timeoutResponse.at("/Result/ConversationID").asText();
+
+        if (conversationId.isEmpty()) {
+            conversationId = timeoutResponse.at("/ConversationID").asText();
         }
+
+        B2cTransactions txn = b2cTransactionsRepository.findByConversationId(conversationId);
+        txn.setStatus(TransactionStatus.IN_DOUBT);
+            txn.setErrorReason("Safaricom Timeout - Manual Verification Required");
+            b2cTransactionsRepository.save(txn);
+
+            log.error("Transaction for Loan {} is in-doubt. DO NOT RE-INITIATE without checking M-Pesa Portal.",
+                    txn.getLoan().getId());
+
+        return ResponseEntity.ok(Map.of("ResultCode", 0, "ResultDesc", "Timeout Recorded"));
     }
 }

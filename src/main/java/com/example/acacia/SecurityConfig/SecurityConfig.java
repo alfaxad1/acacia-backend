@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/stk/**").permitAll()
                         .requestMatchers("/api/v1/c2b/**").permitAll()
+                        .requestMatchers("/api/v1/mpesa-callbacks/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )

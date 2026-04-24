@@ -59,8 +59,13 @@ public class LoanController {
     public ResponseEntity<?> disburseLoan(
             @RequestParam Long loanId
     ) {
-        loanService.approveAndDisburse(loanId);
-        return ResponseHandler.responseBuilder("loan disbursed successfully", HttpStatus.OK, null);
+        try {
+            loanService.approveAndDisburse(loanId);
+            return ResponseHandler.responseBuilder("loan disbursed successfully", HttpStatus.OK, null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     @PostMapping("/repay")
