@@ -123,6 +123,7 @@ public class LoanService {
 
             return loanRepository.save(loan);
         } catch (Exception e) {
+            logger.error("Loan approval failed.");
             throw new RuntimeException(e);
         }
     }

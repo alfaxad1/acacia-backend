@@ -64,14 +64,18 @@ public class MpesaService {
                 .addHeader("Authorization", "Basic " + auth)
                 .build();
 
-        try (Response response = new OkHttpClient().newCall(request).execute()) {
+        try (Response response = client.newCall(request).execute()) {
+            String body = response.body() != null ? response.body().string() : "{}";
+
             if (!response.isSuccessful()) {
-                throw new RuntimeException("Failed to get access token: " + response.body().string());
+                throw new RuntimeException("Failed to get access token: " + body);
             }
 
-            JsonNode json = objectMapper.readTree(response.body().string());
+            JsonNode json = objectMapper.readTree(body);
             accessToken = json.get("access_token").asText();
             tokenExpiry = Instant.now().plusSeconds(json.get("expires_in").asLong() - 60);
+
+            logger.info("Access token refreshed, expires in {} seconds", json.get("expires_in").asLong());
             return accessToken;
         }
     }
