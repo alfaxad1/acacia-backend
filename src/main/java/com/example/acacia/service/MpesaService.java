@@ -13,9 +13,11 @@ import com.example.acacia.utility.FormatPhone;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.io.IOException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 import org.springframework.stereotype.Service;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.example.acacia.dto.*;
@@ -29,11 +31,12 @@ import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class MpesaService {
     private final LoanRepository loanRepository;
     private final B2cTransactionsRepository b2cTransactionsRepository;
     private final SaccoWalletRepository walletRepository;
+
+    private static final Logger logger = LoggerFactory.getLogger(MpesaService.class);
 
     private final MpesaConfig config;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -76,7 +79,7 @@ public class MpesaService {
     public StkPushResponse stkPush(String phoneNumber, String amount,
                                    String accountReference, String transactionDesc) throws IOException, java.io.IOException {
 
-        log.info("Formated phone {}", phoneNumber);
+        logger.info("Formated phone {}", phoneNumber);
 
         String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
         String password = Base64.getEncoder().encodeToString(
@@ -100,8 +103,7 @@ public class MpesaService {
         String json = objectMapper.writeValueAsString(requestBody);
 
         String url = config.getBaseUrl() + "/mpesa/stkpush/v1/processrequest";
-        log.info("STK url: {}", url);
-
+        logger.info("STK url: {}", url);
 
         Request request = new Request.Builder()
                 .url(url)
@@ -112,9 +114,9 @@ public class MpesaService {
 
         try (Response response = new OkHttpClient().newCall(request).execute()) {
             String body = response.body().string();
-            log.info("STK body: {}", body);
+            logger.info("STK body: {}", body);
             if (!response.isSuccessful()) {
-                log.error("STK response code: {}", response.body().string());
+                logger.error("STK response code: {}", response.body().string());
                 throw new RuntimeException("STK Push failed: " + body);
             }
             return objectMapper.readValue(body, StkPushResponse.class);
@@ -137,7 +139,7 @@ public class MpesaService {
     }
 
     public void disburseFunds(String phoneNumber, BigDecimal amount, String loanId) throws Exception {
-        log.info("Starting funds disbursement...");
+        logger.info("Starting funds disbursement...");
         B2CRequest requestBody = B2CRequest.builder()
                 .initiatorName(config.getInitiatorName())
                 .securityCredential(config.getB2cSecurityCredential())
@@ -161,7 +163,7 @@ public class MpesaService {
         B2cTransactions savedTxn = b2cTransactionsRepository.save(txn);
 
         try {
-            log.info("Sending request to mpesa...");
+            logger.info("Sending request to mpesa...");
             JsonNode mpesaResponse = sendMpesaRequest(config.getBaseUrl() + "/mpesa/b2c/v1/paymentrequest", requestBody);
             if(mpesaResponse.has("ConversationID")){
                 String conversationId = mpesaResponse.get("ConversationID").asText();
@@ -171,10 +173,10 @@ public class MpesaService {
                 savedTxn.setOriginatorConversationId(originConversationId);
                 b2cTransactionsRepository.save(savedTxn);
 
-                log.info("Transaction updated with ConversationID: {}", conversationId);
+                logger.info("Transaction updated with ConversationID: {}", conversationId);
             }
         } catch (Exception e) {
-            log.error("Disbursement failed: {}", e.getMessage());
+            logger.error("Disbursement failed: {}", e.getMessage());
             savedTxn.setStatus(TransactionStatus.FAILED);
             b2cTransactionsRepository.save(savedTxn);
             throw new RuntimeException(e);
@@ -192,9 +194,10 @@ public class MpesaService {
 
         try (Response response = client.newCall(request).execute()) {
             String responseBodyString = response.body() != null ? response.body().string() : "{}";
-            log.info("Mpesa Response: {}", responseBodyString);
+            logger.info("Mpesa Response: {}", responseBodyString);
 
             if (!response.isSuccessful()) {
+                logger.error("Mpesa API error: {} ", responseBodyString);
                 throw new RuntimeException("Mpesa API error: " + responseBodyString);
             }
 
@@ -237,13 +240,14 @@ public class MpesaService {
                     loanRepository.save(loan);
                 }
                 else {
-                    log.warn("B2C Disbursement failed for ConvID {}: {}", conversationId, resultDesc);
+                    logger.warn("B2C Disbursement failed for ConvID {}: {}", conversationId, resultDesc);
                     txn.setStatus(TransactionStatus.FAILED);
                     txn.setErrorReason(resultDesc);
                 }
                 b2cTransactionsRepository.save(txn);
             }
         } catch (Exception e) {
+            logger.error(e.getMessage());
             throw new RuntimeException(e);
         }
     }

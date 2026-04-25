@@ -11,7 +11,8 @@ import com.example.acacia.utility.FormatPhone;
 import jakarta.persistence.Tuple;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,10 +28,8 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class LoanService {
     private final MemberRepository memberRepository;
-    private final ContributionRepository contributionRepository;
     private final LoanEligibilityService eligibilityService;
     private final LoanRepository loanRepository;
     private final ExtraRepository extraRepository;
@@ -43,6 +42,8 @@ public class LoanService {
     private final FormatPhone formatPhone;
     private final TransactionRepository transactionRepository;
     private final SaccoWalletRepository walletRepository;
+
+    private static final Logger logger = LoggerFactory.getLogger(LoanService.class);
 
     @Transactional
     public void requestLoan(
@@ -57,6 +58,7 @@ public class LoanService {
                 eligibilityService.checkEligibility(member, requestedAmount);
 
         if (!result.isEligible()) {
+            logger.error("Not eligible: {}", result.getReason());
             throw new IllegalStateException(result.getReason());
         }
 
@@ -75,8 +77,8 @@ public class LoanService {
         loanRepository.save(loan);
 
         String subject = "LOAN REQUEST BY " + member.getFullName().toUpperCase();
-        String content = member.getFullName() + " is requesting for a loan of Ksh." +  requestedAmount + ". Please login into the system and place your vote";
-        log.info("User email: {} ", member.getEmail());
+        String content = member.getFullName() + " is requesting for a loan of Ksh." +  requestedAmount + ". Please loggerin into the system and place your vote";
+        logger.info("User email: {} ", member.getEmail());
 
         List<Member> members = memberRepository.findAllByStatus(MemberStatus.ACTIVE);
 
@@ -84,7 +86,7 @@ public class LoanService {
             try {
                 emailService.sendMail(member1.getEmail(), subject, content);
             } catch (Exception e) {
-                log.error("Failed to send mail for member {} Error: {}", member1.getEmail(), e.getMessage());
+                logger.error("Failed to send mail for member {} Error: {}", member1.getEmail(), e.getMessage());
                 throw new RuntimeException(e);
             }
         }
@@ -96,6 +98,7 @@ public class LoanService {
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
 
         if (loan.getStatus() != LoanStatus.PENDING) {
+            logger.error("Loan is not pending");
             throw new IllegalStateException("Loan is not pending");
         }
 
@@ -107,6 +110,7 @@ public class LoanService {
 
         SaccoWallet wallet = walletRepository.findById(1L).orElse(new SaccoWallet());
         if (wallet.getMpesaFloatBalance().compareTo(approvedAmount) < 0) {
+            logger.error("Insufficient M-Pesa Float to disburse this loan.");
             throw new IllegalStateException("Insufficient M-Pesa Float to disburse this loan.");
         }
 
@@ -117,9 +121,10 @@ public class LoanService {
         loanRepository.save(loan);
 
         try {
-            log.info("About to disburse funds...");
+            logger.info("About to disburse funds...");
             mpesaService.disburseFunds(loan.getMember().getPhone(), approvedAmount, loan.getId().toString());
         } catch (Exception e) {
+            logger.error("Failed to initiate M-Pesa disbursement: {} ", e.getMessage());
             throw new RuntimeException("Failed to initiate M-Pesa disbursement: " + e.getMessage());
         }
     }
@@ -303,6 +308,7 @@ public class LoanService {
             }
             return dtoList;
         } catch (Exception e) {
+            logger.error(e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -310,7 +316,7 @@ public class LoanService {
     public StkPushResponse initiateLoanPayment(Long loanId, BigDecimal amount) {
         try{
             if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                log.error("Loan not found");
+                logger.error("Loan not found");
                 throw new IllegalArgumentException("Amount must be greater than zero");
             }
 
@@ -319,14 +325,14 @@ public class LoanService {
 
             if (loan.getStatus() != LoanStatus.DISBURSED
                     && loan.getStatus() != LoanStatus.DEFAULTED) {
-                log.error("Loan is not active");
+                logger.error("Loan is not active");
                 throw new IllegalStateException("Loan is not active");
             }
-            log.info("Loan found: {}", loan.getId());
+            logger.info("Loan found: {}", loan.getId());
 
             Member member = loan.getMember();
 
-            log.info("====Attempting stk push====");
+            logger.info("====Attempting stk push====");
             StkPushResponse mpesaResponse = mpesaService.stkPush(
                     formatPhone.formatPhoneNumber(member.getPhone()),
                     amount.toString(),
