@@ -17,7 +17,8 @@ import com.example.acacia.service.LoanService;
 import com.example.acacia.service.MpesaService;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,7 +28,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1")
-@Slf4j
 @RequiredArgsConstructor
 public class MpesaCallbackController {
     private final MpesaService mpesaService;
@@ -38,43 +38,45 @@ public class MpesaCallbackController {
     private final LoanService loanService;
     private final B2cTransactionsRepository b2cTransactionsRepository;
 
+    private static final Logger logger = LoggerFactory.getLogger(MpesaCallbackController.class);
+
     @PostMapping("/stk/callback")
     public ResponseEntity<Map<String, Object>> stkCallback(@RequestBody StkCallbackPayload payload) {
-        log.info("STK CALLBACK RECEIVED");
+        logger.info("STK CALLBACK RECEIVED");
         var callbackData = payload.getBody().getStkCallback();
         String checkoutId = callbackData.getCheckoutRequestID();
 
         Transaction txn = transactionRepository.findByCheckoutRequestID(checkoutId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found"));
-        log.info("Callback CheckoutID: {}", checkoutId);
+        logger.info("Callback CheckoutID: {}", checkoutId);
         if (callbackData.getResultCode() == 0) {
             if(txn.getType().equals(TransactionType.CONTRIBUTION)){
                 txn.setStatus(TransactionStatus.COMPLETED);
                 Member member = txn.getMember();
 
-                log.info("Starting to record contribution for member...: {}", member.getId());
+                logger.info("Starting to record contribution for member...: {}", member.getId());
                 contributionService.addContribution(
                         txn.getPeriod().getId(),
                         member.getId(),
                         LocalDateTime.now(),
                         txn.getAmount()
                 );
-                log.info("Contribution successful for member: {}", member.getId());
+                logger.info("Contribution successful for member: {}", member.getId());
             } else if (txn.getType().equals(TransactionType.FINE)) {
                 txn.setStatus(TransactionStatus.COMPLETED);
 
                 fineService.settleFine(txn.getFine().getId());
-                log.info("Fine settled successfully");
+                logger.info("Fine settled successfully");
             } else if (txn.getType().equals(TransactionType.LOAN)) {
                 txn.setStatus(TransactionStatus.COMPLETED);
 
                 loanService.repayLoan(txn.getLoan().getId(), txn.getAmount());
-                log.info("Loan saved...");
+                logger.info("Loan saved...");
             }
 
         } else {
             txn.setStatus(TransactionStatus.FAILED);
-            log.warn("Payment failed for request: {}", checkoutId);
+            logger.warn("Payment failed for request: {}", checkoutId);
         }
 
         transactionRepository.save(txn);
@@ -90,13 +92,13 @@ public class MpesaCallbackController {
 
     @PostMapping("/c2b/confirmation")
     public ResponseEntity<Map<String, Object>> c2bConfirmation(@RequestBody Object payload) {
-        log.info("C2B Confirmation: {}", payload);
+        logger.info("C2B Confirmation: {}", payload);
         return ResponseEntity.ok(Map.of("ResultCode", 0, "ResultDesc", "Accepted"));
     }
 
     @PostMapping("/c2b/validation")
     public ResponseEntity<Map<String, Object>> c2bValidation(@RequestBody Object payload) {
-        log.info("C2B Validation: {}", payload);
+        logger.info("C2B Validation: {}", payload);
         return ResponseEntity.ok(Map.of("ResultCode", 0, "ResultDesc", "Accepted"));
     }
 
@@ -117,14 +119,14 @@ public class MpesaCallbackController {
     }
     @PostMapping("/mpesa-callbacks/balance/timeout")
     public ResponseEntity<?> handleBalanceTimeout(@RequestBody JsonNode timeoutResponse) {
-        log.warn("M-PESA Balance Query Timed Out: {}", timeoutResponse.toString());
+        logger.warn("M-PESA Balance Query Timed Out: {}", timeoutResponse.toString());
         return ResponseEntity.ok("Timeout Received");
     }
 
     @PostMapping("/mpesa-callbacks/b2c/result")
     public ResponseEntity<?> handleB2cResult(@RequestBody MpesaCallbackResponse response) {
        try{
-           log.info("Mpesa callback received. Response: {}", response.toString());
+           logger.info("Mpesa callback received. Response: {}", response.toString());
            mpesaService.processb2cCallback(
                    response.getResult().getConversationID(),
                    response.getResult().getTransactionID(),
@@ -134,13 +136,14 @@ public class MpesaCallbackController {
            );
            return ResponseEntity.ok(Map.of("ResultCode", 0, "ResultDesc", "Accepted"));
        } catch (Exception e) {
+           logger.error("B2C callback processing failed: {}", e.getMessage(), e);
            throw new RuntimeException(e);
        }
     }
 
     @PostMapping("/mpesa-callbacks/b2c/timeout")
     public ResponseEntity<?> handleB2cTimeout(@RequestBody JsonNode timeoutResponse) {
-        log.warn("M-PESA B2C TIMEOUT RECEIVED: {}", timeoutResponse.toString());
+        logger.warn("M-PESA B2C TIMEOUT RECEIVED: {}", timeoutResponse.toString());
 
         String conversationId = timeoutResponse.at("/Result/ConversationID").asText();
 
@@ -153,7 +156,7 @@ public class MpesaCallbackController {
             txn.setErrorReason("Safaricom Timeout - Manual Verification Required");
             b2cTransactionsRepository.save(txn);
 
-            log.error("Transaction for Loan {} is in-doubt. DO NOT RE-INITIATE without checking M-Pesa Portal.",
+            logger.error("Transaction for Loan {} is in-doubt. DO NOT RE-INITIATE without checking M-Pesa Portal.",
                     txn.getLoan().getId());
 
         return ResponseEntity.ok(Map.of("ResultCode", 0, "ResultDesc", "Timeout Recorded"));

@@ -10,6 +10,8 @@ import com.example.acacia.service.LoanVotingService;
 import com.example.acacia.utility.ResponseHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -25,10 +27,11 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/loan")
-@Slf4j
 public class LoanController {
     private final LoanService loanService;
     private final LoanVotingService loanVotingService;
+
+    private static final Logger logger = LoggerFactory.getLogger(LoanController.class);
 
     @GetMapping()
     public ResponseEntity<List<LoanDto>> getLoans(@RequestParam LoanStatus loanStatus, @RequestParam(defaultValue = "10") Integer size, @RequestParam(defaultValue = "0") Integer page) {
@@ -60,9 +63,11 @@ public class LoanController {
             @RequestParam Long loanId
     ) {
         try {
-            loanService.approveAndDisburse(loanId);
+            Loan loan = loanService.approveLoan(loanId);
+            loanService.disburse(loan);
             return ResponseHandler.responseBuilder("loan disbursed successfully", HttpStatus.OK, null);
         } catch (Exception e) {
+            logger.error("Loan disbursement failed for loanId {}: {}", loanId, e.getMessage(), e);
             throw new RuntimeException(e);
         }
 
@@ -81,7 +86,7 @@ public class LoanController {
 
             return ResponseHandler.responseBuilder("STK push sent. Awaiting user payment confirmation", HttpStatus.CREATED, data);
         }catch (Exception e){
-            log.error("Error when paying loan", e);
+            logger.error("Error when paying loan", e);
             throw new RuntimeException("Error when paying loan", e);
         }
     }

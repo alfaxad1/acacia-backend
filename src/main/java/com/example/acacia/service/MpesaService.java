@@ -138,8 +138,8 @@ public class MpesaService {
         sendMpesaRequest(config.getBaseUrl() + "/mpesa/accountbalance/v1/query", requestBody);
     }
 
-    public void disburseFunds(String phoneNumber, BigDecimal amount, String loanId) throws Exception {
-        logger.info("Starting funds disbursement...");
+    public void disburseFunds(String phoneNumber, BigDecimal amount, Loan loan) throws Exception {
+        logger.info("Starting funds disbursement to phone: {} ...", formatPhone.formatPhoneNumber(phoneNumber));
         B2CRequest requestBody = B2CRequest.builder()
                 .initiatorName(config.getInitiatorName())
                 .securityCredential(config.getB2cSecurityCredential())
@@ -147,13 +147,11 @@ public class MpesaService {
                 .amount(amount.toPlainString())
                 .partyA(config.getB2cShortcode())
                 .partyB(formatPhone.formatPhoneNumber(phoneNumber))
-                .remarks("Loan ID: " + loanId)
+                .remarks("Loan ID: " + loan.getId())
                 .queueTimeOutURL(config.getB2cTimeoutUrl())
                 .resultURL(config.getB2cResultUrl())
                 .occasion("Loan Disbursement")
                 .build();
-
-        Loan loan = loanRepository.findById(Long.parseLong(loanId)).get();
 
         B2cTransactions txn = new B2cTransactions();
         txn.setAmount(amount);
@@ -216,11 +214,16 @@ public class MpesaService {
                             .map(p -> new BigDecimal(String.valueOf(p.getValue())))
                             .orElse(BigDecimal.ZERO);
 
-                    SaccoWallet wallet = walletRepository.findById(1L).get();
+                    SaccoWallet wallet = walletRepository.findById(1L)
+                            .orElseThrow(() -> new IllegalStateException("Sacco wallet not configured"));
+
                     BigDecimal beforeBalance = wallet.getMpesaFloatBalance();
 
                     BigDecimal totalDeducted = beforeBalance.subtract(afterBalance);
                     BigDecimal fee = totalDeducted.subtract(txn.getAmount());
+
+                    wallet.setMpesaFloatBalance(afterBalance);
+                    walletRepository.save(wallet);
 
                     txn.setFee(fee);
                     txn.setStatus(TransactionStatus.COMPLETED);

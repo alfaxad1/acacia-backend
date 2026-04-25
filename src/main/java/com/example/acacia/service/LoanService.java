@@ -93,36 +93,44 @@ public class LoanService {
     }
 
     @Transactional
-    public void approveAndDisburse(Long loanId) {
-        Loan loan = loanRepository.findById(loanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
+    public Loan approveLoan(Long loanId) {
+        try{
+            logger.info("Loan approval started ....");
+            Loan loan = loanRepository.findById(loanId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
 
-        if (loan.getStatus() != LoanStatus.PENDING) {
-            logger.error("Loan is not pending");
-            throw new IllegalStateException("Loan is not pending");
+            if (loan.getStatus() != LoanStatus.PENDING) {
+                logger.error("Loan is not pending");
+                throw new IllegalStateException("Loan is not pending");
+            }
+
+            BigDecimal approvedAmount = loan.getRequestedAmount().min(loan.getEligibleAmount());
+            BigDecimal interest = approvedAmount
+                    .multiply(loan.getInterestRate())
+                    .divide(BigDecimal.valueOf(100), 0, RoundingMode.CEILING);
+
+            SaccoWallet wallet = walletRepository.findById(1L)
+                    .orElseThrow(() -> new IllegalStateException("Sacco wallet not configured"));
+            if (wallet.getMpesaFloatBalance().compareTo(approvedAmount) < 0) {
+                logger.error("Insufficient M-Pesa Float to disburse this loan.");
+                throw new IllegalStateException("Insufficient M-Pesa Float to disburse this loan.");
+            }
+
+            loan.setApprovedAmount(approvedAmount);
+            loan.setStatus(LoanStatus.APPROVED);
+            loan.setInterestAmount(interest);
+            loan.setApprovalDate(LocalDate.now());
+
+            return loanRepository.save(loan);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
+    }
 
-        BigDecimal approvedAmount = loan.getRequestedAmount().min(loan.getEligibleAmount());
-        BigDecimal interest = approvedAmount
-                .multiply(loan.getInterestRate())
-                .divide(BigDecimal.valueOf(100))
-                .setScale(0, RoundingMode.CEILING);
-
-        SaccoWallet wallet = walletRepository.findById(1L).orElse(new SaccoWallet());
-        if (wallet.getMpesaFloatBalance().compareTo(approvedAmount) < 0) {
-            logger.error("Insufficient M-Pesa Float to disburse this loan.");
-            throw new IllegalStateException("Insufficient M-Pesa Float to disburse this loan.");
-        }
-
-        loan.setApprovedAmount(approvedAmount);
-        loan.setStatus(LoanStatus.APPROVED);
-        loan.setInterestAmount(interest);
-        loan.setApprovalDate(LocalDate.now());
-        loanRepository.save(loan);
-
+    public void disburse(Loan loan) {
         try {
             logger.info("About to disburse funds...");
-            mpesaService.disburseFunds(loan.getMember().getPhone(), approvedAmount, loan.getId().toString());
+            mpesaService.disburseFunds(loan.getMember().getPhone(), loan.getApprovedAmount(), loan);
         } catch (Exception e) {
             logger.error("Failed to initiate M-Pesa disbursement: {} ", e.getMessage());
             throw new RuntimeException("Failed to initiate M-Pesa disbursement: " + e.getMessage());
