@@ -202,28 +202,6 @@ public class MpesaService {
         }
     }
 
-    /**
-     * Disburse funds via B2C
-     */
-    public void disburseFunds(String phoneNumber, String amount, String remarks) throws Exception {
-        String securityCredential = config.getB2cSecurityCredential();
-
-        B2CRequest requestBody = B2CRequest.builder()
-                .initiatorName(config.getInitiatorName())
-                .securityCredential(securityCredential)
-                .commandID("BusinessPayment")
-                .amount(amount)
-                .partyA(config.getB2cShortcode())
-                .partyB(phoneNumber)
-                .remarks(remarks)
-                .queueTimeOutURL(config.getB2cTimeoutUrl())
-                .resultURL(config.getB2cResultUrl())
-                .occasion("SACCO Payout")
-                .build();
-
-        sendMpesaRequest(config.getBaseUrl() + "/mpesa/b2c/v1/paymentrequest", requestBody);
-    }
-
     public void processb2cCallback(String conversationId, String transactionId, MpesaCallbackResponse.ResultParameters resultParameters, Integer resultCode, String resultDesc) {
         try {
             B2cTransactions txn = b2cTransactionsRepository.findByConversationId(((conversationId)));
