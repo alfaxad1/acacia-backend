@@ -203,13 +203,21 @@ public class LoanService {
             penaltyAmount, currentTotal.add(penaltyAmount).toString()
         );
 
+        creditScoreService.updateCreditScore(loan.getMember());
         emailService.sendMail(loan.getMember().getEmail(), "LOAN PENALTY", message);
     }
 
     private BigDecimal getTieredRate(BigDecimal amount) {
-        if (amount.compareTo(new BigDecimal("5000")) <= 0) return new BigDecimal("0.03");
-        if (amount.compareTo(new BigDecimal("10000")) <= 0) return new BigDecimal("0.04");
-        return new BigDecimal("0.05");
+        if (amount.compareTo(new BigDecimal("3000")) <= 0) {
+            return new BigDecimal("0.05"); // 5%
+        }
+        if (amount.compareTo(new BigDecimal("6000")) <= 0) {
+            return new BigDecimal("0.03"); // 3%
+        }
+        if (amount.compareTo(new BigDecimal("10000")) <= 0) {
+            return new BigDecimal("0.02"); // 2%
+        }
+        return BigDecimal.ZERO;
     }
 
     private void sendReminder(Loan loan, String subject) {

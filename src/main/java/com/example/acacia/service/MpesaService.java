@@ -196,7 +196,7 @@ public class MpesaService {
 
         try (Response response = client.newCall(request).execute()) {
             String responseBodyString = response.body() != null ? response.body().string() : "{}";
-            logger.info("Mpesa Response: {}", responseBodyString);
+            //logger.info("Mpesa Response: {}", responseBodyString);
 
             if (!response.isSuccessful()) {
                 logger.error("Mpesa API error: {} ", responseBodyString);

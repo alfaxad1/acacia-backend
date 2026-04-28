@@ -16,6 +16,7 @@ import com.example.acacia.service.FineService;
 import com.example.acacia.service.LoanService;
 import com.example.acacia.service.MpesaService;
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,10 +51,11 @@ public class MpesaCallbackController {
                 .orElseThrow(() -> new RuntimeException("Transaction not found"));
         logger.info("Callback CheckoutID: {}", checkoutId);
         if (callbackData.getResultCode() == 0) {
-            if(txn.getType().equals(TransactionType.CONTRIBUTION)){
-                txn.setStatus(TransactionStatus.COMPLETED);
-                Member member = txn.getMember();
+            txn.setStatus(TransactionStatus.COMPLETED);
+            transactionRepository.save(txn);
 
+            if (txn.getType().equals(TransactionType.CONTRIBUTION)) {
+                Member member = txn.getMember();
                 logger.info("Starting to record contribution for member...: {}", member.getId());
                 contributionService.addContribution(
                         txn.getPeriod().getId(),
@@ -62,20 +64,19 @@ public class MpesaCallbackController {
                         txn.getAmount()
                 );
                 logger.info("Contribution successful for member: {}", member.getId());
+
             } else if (txn.getType().equals(TransactionType.FINE)) {
-                txn.setStatus(TransactionStatus.COMPLETED);
-
-                fineService.settleFine(txn.getFine().getId());
+                fineService.settleFine(txn.getFine());
                 logger.info("Fine settled successfully");
-            } else if (txn.getType().equals(TransactionType.LOAN)) {
-                txn.setStatus(TransactionStatus.COMPLETED);
 
+            } else if (txn.getType().equals(TransactionType.LOAN)) {
                 loanService.repayLoan(txn.getLoan().getId(), txn.getAmount());
                 logger.info("Loan saved...");
             }
 
         } else {
             txn.setStatus(TransactionStatus.FAILED);
+            transactionRepository.save(txn);
             logger.warn("Payment failed for request: {}", checkoutId);
         }
 
@@ -90,9 +91,19 @@ public class MpesaCallbackController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Transactional
     @PostMapping("/c2b/confirmation")
-    public ResponseEntity<Map<String, Object>> c2bConfirmation(@RequestBody Object payload) {
+    public ResponseEntity<Map<String, Object>> c2bConfirmation(@RequestBody Map<String, Object> payload) {
         logger.info("C2B Confirmation: {}", payload);
+
+        BigDecimal accountBalance = new BigDecimal(payload.get("OrgAccountBalance").toString());
+
+        SaccoWallet wallet = walletRepository.findById(1L)
+                .orElseThrow(() -> new IllegalStateException("Sacco wallet not configured"));
+
+        wallet.setMpesaFloatBalance(accountBalance);
+        walletRepository.save(wallet);
+
         return ResponseEntity.ok(Map.of("ResultCode", 0, "ResultDesc", "Accepted"));
     }
 

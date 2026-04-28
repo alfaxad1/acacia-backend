@@ -68,7 +68,7 @@ public class LoanController {
             return ResponseHandler.responseBuilder("loan disbursed successfully", HttpStatus.OK, null);
         } catch (Exception e) {
             logger.error("Loan disbursement failed for loanId {}: {}", loanId, e.getMessage(), e);
-            throw new RuntimeException(e);
+            throw new RuntimeException(e.getMessage());
         }
 
     }

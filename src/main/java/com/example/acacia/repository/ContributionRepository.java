@@ -51,7 +51,7 @@ public interface ContributionRepository extends JpaRepository<Contribution,Long>
     );
 
     @Query("SELECT new com.example.acacia.dto.ContributionResponseDTO(" +
-            "c.id, m.fullName, p.date, c.amount, c.paymentDate, c.isLate) " +
+            "c.id, m.id, m.fullName, p.date, c.amount, c.paymentDate, c.isLate) " +
             "FROM Contribution c " +
             "JOIN c.member m " +
             "JOIN c.period p")

@@ -43,11 +43,21 @@ public class ContributionServiceImpl implements ContributionService {
     public StkPushResponse initiateContribution(  Long memberId, Long periodId) throws IOException {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member doesn't exist"));
-        log.info("Member was found");
+
+        List<Fine> oldUnpaidFines = fineRepository.findByMemberAndStatusAndFineDateBefore(
+                member, FineStatus.UNPAID, LocalDate.now().minusDays(30));
+
+        if (!oldUnpaidFines.isEmpty()) {
+            long count = oldUnpaidFines.size();
+            String message = count == 1
+                    ? "The member has 1 unpaid fine older than 30 days. Please settle it first."
+                    : "The member has " + count + " unpaid fines older than 30 days. Please settle them first.";
+
+            throw new BusinessException(message, "UNPAID_FINES_PENDING");
+        }
 
         ContributionPeriod period = periodRepository.findById(periodId)
                 .orElseThrow(() -> new ResourceNotFoundException("Period doesn't exist"));
-        log.info("Period was found");
 
         if (contributionRepository.existsByMemberAndPeriod(member, period)) {
             throw new IllegalStateException(
@@ -112,17 +122,6 @@ public class ContributionServiceImpl implements ContributionService {
 //                FineStatus.UNPAID,
 //                LocalDate.now().minusDays(30));
 
-        List<Fine> oldUnpaidFines = fineRepository.findByMemberAndStatusAndFineDateBefore(
-                member, FineStatus.UNPAID, LocalDate.now().minusDays(30));
-
-        if (!oldUnpaidFines.isEmpty()) {
-            long count = oldUnpaidFines.size();
-            String message = count == 1
-                    ? "The member has 1 unpaid fine older than 30 days. Please settle it first."
-                    : "The member has " + count + " unpaid fines older than 30 days. Please settle them first.";
-
-            throw new BusinessException(message, "UNPAID_FINES_PENDING");
-        }
 //        for (Fine fine : fines) {
 //
 //            if (amountToRecord.compareTo(BigDecimal.ZERO) <= 0)
@@ -283,6 +282,7 @@ public class ContributionServiceImpl implements ContributionService {
         return contributionRepository.findById(id)
                 .map(c -> new ContributionResponseDTO(
                         c.getId(),
+                        c.getMember().getId(),
                         c.getMember().getFullName(),
                         c.getPeriod().getDate(),
                         c.getAmount(),
@@ -294,7 +294,8 @@ public class ContributionServiceImpl implements ContributionService {
     @Override
     public Response<List<ContributionArrearDto>> getArrears(Pageable pageable) {
         try {
-            Page<Tuple> arrearsPage = contributionArrearRepository.findArrears(pageable);
+            boolean isPaid = false;
+            Page<Tuple> arrearsPage = contributionArrearRepository.findArrears(pageable, isPaid);
 
             List<ContributionArrearDto> dtoList = arrearsPage.getContent().stream()
                     .map(tuple -> ContributionArrearDto.builder()

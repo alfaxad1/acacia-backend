@@ -15,8 +15,8 @@ import java.util.List;
 
 @Repository
 public interface ContributionArrearRepository extends JpaRepository<ContributionArrear,Long> {
-    @Query("select a.id, a.amount, m.fullName, p.date, f.amount from ContributionArrear a join a.member m join a.fine f join a.period p")
-    Page<Tuple> findArrears(Pageable pageable);
+    @Query("select a.id, a.amount, m.fullName, p.date, f.amount from ContributionArrear a join a.member m join a.fine f join a.period p where a.isPaid = :isPaid")
+    Page<Tuple> findArrears(Pageable pageable, boolean isPaid);
 
     @Query("select count(ca), coalesce(sum(ca.amount) ,0) from ContributionArrear ca join ca.member m where m.id = :userId and ca.isPaid = :isPaid")
     List<Object[]> getMemberContributionArrear(Long userId, boolean isPaid);

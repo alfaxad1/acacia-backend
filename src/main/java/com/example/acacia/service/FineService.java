@@ -16,7 +16,8 @@ import com.example.acacia.repository.TransactionRepository;
 import com.example.acacia.utility.FormatPhone;
 import jakarta.persistence.Tuple;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -27,7 +28,6 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class FineService {
     private final FineRepository fineRepository;
     private final SaccoSetupRepository setupRepository;
@@ -36,6 +36,8 @@ public class FineService {
     private final MpesaService mpesaService;
     private final TransactionRepository transactionRepository;
     private final FormatPhone formatPhone;
+
+    private static final Logger logger = LoggerFactory.getLogger(FineService.class);
 
     public void recordFine(FineRequest fineRequest) {
         try{
@@ -68,11 +70,11 @@ public class FineService {
     public StkPushResponse initiateFinePayment(Long fineId) throws IOException {
         try{
             Fine fine = fineRepository.findById(fineId).orElseThrow(() -> new ResourceNotFoundException("Fine doesn't exist"));
-            log.info("FIne found: {}", fine.getId());
+            logger.info("FIne found: {}", fine.getId());
 
             Member member = fine.getMember();
 
-            log.info("====Attempting stk push====");
+            logger.info("====Attempting stk push====");
             StkPushResponse mpesaResponse = mpesaService.stkPush(
                     formatPhone.formatPhoneNumber(member.getPhone()),
                     fine.getAmount().toString(),
@@ -95,9 +97,8 @@ public class FineService {
         }
     }
 
-    public void settleFine(Long fineId) {
+    public void settleFine(Fine fine) {
         try {
-            Fine fine = fineRepository.findById(fineId).orElseThrow(() -> new ResourceNotFoundException("Fine doesn't exist"));
             fine.setStatus(FineStatus.PAID);
             fine.setPaid(true);
             fine.setPaidDate(LocalDate.now());

@@ -1,11 +1,11 @@
 package com.example.acacia.contoller;
 
+import com.example.acacia.Exception.BusinessException;
 import com.example.acacia.dto.ContributionArrearDto;
 import com.example.acacia.dto.ContributionResponseDTO;
 import com.example.acacia.dto.Response;
 import com.example.acacia.dto.StkPushResponse;
 import com.example.acacia.enums.ResponseStatusEnum;
-import com.example.acacia.enums.TransactionStatus;
 import com.example.acacia.repository.TransactionRepository;
 import com.example.acacia.service.ContributionPenaltyJobService;
 import com.example.acacia.service.ContributionService;
@@ -32,8 +32,6 @@ import java.util.Map;
 @Slf4j
 public class ContributionController {
     private final ContributionService contributionService;
-    private final TransactionRepository transactionRepository;
-    private final ContributionPenaltyJobService penaltyJobService;
 
     @PostMapping
     ResponseEntity<?> recordContribution(
@@ -51,9 +49,9 @@ public class ContributionController {
                     HttpStatus.CREATED,
                     data
             );
-        }catch (Exception e){
+        }catch (BusinessException e){
             log.error("Error saving contribution", e);
-            throw new RuntimeException("Error saving contribution", e);
+            throw new RuntimeException("Error saving contribution: " + e.getMessage());
         }
     }
 

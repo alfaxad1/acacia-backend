@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 
 public record ContributionResponseDTO(
         Long id,
+        Long memberId,
         String memberName,
         LocalDate periodDate,
         BigDecimal amount,
