@@ -144,6 +144,7 @@ public class MpesaService {
 
     public void disburseFunds(String phoneNumber, BigDecimal amount, Loan loan) throws Exception {
         logger.info("Starting funds disbursement to phone: {} ...", formatPhone.formatPhoneNumber(phoneNumber));
+        logger.info("Amount: {}", amount.toPlainString());
         B2CRequest requestBody = B2CRequest.builder()
                 .initiatorName(config.getInitiatorName())
                 .securityCredential(config.getB2cSecurityCredential())
