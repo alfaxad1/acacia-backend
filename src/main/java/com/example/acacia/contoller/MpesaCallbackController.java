@@ -115,12 +115,16 @@ public class MpesaCallbackController {
 
     @PostMapping("/mpesa-callbacks/balance/result")
     public void handleBalanceResult(@RequestBody MpesaCallbackResponse response) {
+        logger.info("BALANCE URL HIT...");
+        logger.info("RESPONSE: {}", response);
         if (response.getResult().getResultCode() == 0) {
             String balanceData = (String) response.getResult().getResultParameters().getResultParameter()
                     .stream().filter(p -> p.getKey().equals("AccountBalance")).findFirst().get().getValue();
 
             // Split: Name|Currency|Available|Reserved|Unused|Unused
             String availableBalance = balanceData.split("\\|")[2];
+            logger.info("BALANCE DATA {}",  balanceData);
+            logger.info("Available balance {}",  availableBalance);
 
             SaccoWallet wallet = walletRepository.findById(1L).orElse(new SaccoWallet());
             wallet.setMpesaFloatBalance(new BigDecimal(availableBalance));
