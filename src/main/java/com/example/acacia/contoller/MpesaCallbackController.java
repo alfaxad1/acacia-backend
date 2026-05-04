@@ -115,23 +115,40 @@ public class MpesaCallbackController {
 
     @PostMapping("/mpesa-callbacks/balance/result")
     public void handleBalanceResult(@RequestBody MpesaCallbackResponse response) {
-        logger.info("BALANCE URL HIT...");
-        logger.info("RESPONSE: {}", response);
+        logger.info("BALANCE CALLBACK HIT...");
+
         if (response.getResult().getResultCode() == 0) {
             String balanceData = (String) response.getResult().getResultParameters().getResultParameter()
-                    .stream().filter(p -> p.getKey().equals("AccountBalance")).findFirst().get().getValue();
+                    .stream()
+                    .filter(p -> p.getKey().equals("AccountBalance"))
+                    .findFirst()
+                    .map(MpesaCallbackResponse.MpesaParameter::getValue)
+                    .orElse("");
 
-            // Split: Name|Currency|Available|Reserved|Unused|Unused
-            String availableBalance = balanceData.split("\\|")[2];
-            logger.info("BALANCE DATA {}",  balanceData);
-            logger.info("Available balance {}",  availableBalance);
+            logger.info("RAW BALANCE DATA: {}", balanceData);
+
+            String[] accounts = balanceData.split("&");
+            String utilityBalanceStr = "0.00";
+
+            for (String account : accounts) {
+                if (account.contains("Utility Account")) {
+                    String[] parts = account.split("\\|");
+                    if (parts.length >= 4) {
+                        utilityBalanceStr = parts[3];
+                    }
+                    break;
+                }
+            }
+
+            logger.info("Extracted Utility Available Balance: {}", utilityBalanceStr);
 
             SaccoWallet wallet = walletRepository.findById(1L).orElse(new SaccoWallet());
-            wallet.setMpesaFloatBalance(new BigDecimal(availableBalance));
+            wallet.setMpesaFloatBalance(new BigDecimal(utilityBalanceStr));
             wallet.setLastUpdated(LocalDateTime.now());
             walletRepository.save(wallet);
         }
     }
+
     @PostMapping("/mpesa-callbacks/balance/timeout")
     public ResponseEntity<?> handleBalanceTimeout(@RequestBody JsonNode timeoutResponse) {
         logger.warn("M-PESA Balance Query Timed Out: {}", timeoutResponse.toString());

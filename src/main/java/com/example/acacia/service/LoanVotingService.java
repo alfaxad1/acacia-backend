@@ -80,6 +80,7 @@ public class LoanVotingService {
 
         if (approvals >= majority) {
             loanService.approveLoan(loan.getId());
+            loanService.disburse(loan);
             emailService.sendMail(loan.getMember().getEmail(), "LOAN APPROVAL", "Your loan application has been approved. Please contact the treasurer for the disbursement");
         } else if (rejections >= majority) {
             loanService.rejectLoan(loan.getId(), "Committee rejected");
