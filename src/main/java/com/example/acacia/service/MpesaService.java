@@ -245,6 +245,7 @@ public class MpesaService {
                     loan.setTotalPayable(totalAMount.add(c2bFee));
                     loan.setStatus(LoanStatus.DISBURSED);
                     loan.setTransactionCost(fee);
+                    loan.setTotalPayable(totalAMount.add(fee).add(c2bFee));
                     loanRepository.save(loan);
                 }
                 else {

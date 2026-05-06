@@ -1,5 +1,6 @@
 package com.example.acacia.service;
 
+import com.example.acacia.Exception.BusinessException;
 import com.example.acacia.Exception.ResourceNotFoundException;
 import com.example.acacia.dto.LoanDto;
 import com.example.acacia.dto.LoanEligibilityResult;
@@ -138,6 +139,23 @@ public class LoanService {
         }
     }
 
+    private BigDecimal getLoanBalance(Loan loan){
+        try{
+            List<LoanRepayment> repayments =
+                    loanRepaymentRepository.findByLoan(loan);
+
+            BigDecimal repaidAmount = repayments.stream()
+                    .map(LoanRepayment::getAmount)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            return loan.getTotalPayable().subtract(repaidAmount);
+
+        }catch (BusinessException e){
+            throw new BusinessException(e.getMessage());
+        }
+    }
+
     @Scheduled(cron = "0 0 1 * * ?") // Every day at 1AM
     @Transactional
     public void processLoanNotificationsAndPenalties() {
@@ -178,10 +196,10 @@ public class LoanService {
     }
 
     private void applyPenaltyAndMarkDefault(Loan loan, LocalDate today) {
-        BigDecimal approvedAmount = loan.getApprovedAmount();
-        BigDecimal rate = getTieredRate(approvedAmount);
+        BigDecimal balance = getLoanBalance(loan);
+        BigDecimal rate = getTieredRate(balance);
 
-        BigDecimal penaltyAmount = approvedAmount.multiply(rate)
+        BigDecimal penaltyAmount = balance.multiply(rate)
                 .setScale(2, RoundingMode.HALF_UP);
 
         loan.setStatus(LoanStatus.DEFAULTED);
@@ -236,15 +254,7 @@ public class LoanService {
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
 
-        List<LoanRepayment> repayments =
-                loanRepaymentRepository.findByLoan(loan);
-
-        BigDecimal repaidAmount = repayments.stream()
-                .map(LoanRepayment::getAmount)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal balance = loan.getTotalPayable().subtract(repaidAmount);
+        BigDecimal balance = getLoanBalance(loan);
 
         if (balance.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalStateException("Loan already fully repaid");

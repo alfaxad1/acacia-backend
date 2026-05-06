@@ -5,8 +5,13 @@ import com.example.acacia.dto.PersonalStats;
 import com.example.acacia.enums.*;
 import com.example.acacia.model.Contribution;
 import com.example.acacia.model.Member;
+import com.example.acacia.model.SaccoWallet;
+import com.example.acacia.model.TransactionSummary;
 import com.example.acacia.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -22,6 +27,8 @@ public class DashboardService {
     private final MemberRepository memberRepository;
     private final FineRepository fineRepository;
     private final AccountAdjustmentRepository adjustmentRepository;
+    private final SaccoWalletRepository walletRepository;
+    private final TransactionSummaryRepository transactionSummaryRepository;
 
     public DashboardSummary getDashboardSummary(Long userId) {
         BigDecimal totalContributions = contributionRepository.getSaccoBalance();
@@ -30,15 +37,17 @@ public class DashboardService {
         BigDecimal totalDebits = adjustmentRepository.sumAdjustments(AdjustmentType.DEBIT);
         BigDecimal totalSurpluses = extraRepository.sumSurpluses(ExtraType.SURPLUS);
 
-        BigDecimal totalActiveLoans = loanRepository.sumLoans(List.of(LoanStatus.DISBURSED, LoanStatus.DEFAULTED, LoanStatus.REPAID));
+        BigDecimal loansSum = loanRepository.sumLoans(List.of(LoanStatus.DISBURSED, LoanStatus.DEFAULTED, LoanStatus.REPAID));
         BigDecimal totalCredits = adjustmentRepository.sumAdjustments(AdjustmentType.CREDIT);
 
         BigDecimal inAccount = totalContributions.add(totalPaidLoans).add(totalPaidFines).add(totalDebits).add(totalSurpluses);
-        BigDecimal outOfAccount = totalActiveLoans.add(totalCredits);
+        BigDecimal outOfAccount = loansSum.add(totalCredits);
 
         BigDecimal balance = inAccount.subtract(outOfAccount);
 
-        long activeLoans = loanRepository.countActive(LoanStatus.DISBURSED);
+        long activeLoans = loanRepository.countActive(List.of(LoanStatus.DISBURSED, LoanStatus.DEFAULTED));
+
+        BigDecimal totalActiveLoansAmount = loanRepository.sumLoans(List.of(LoanStatus.DISBURSED, LoanStatus.DEFAULTED));
 
         Long members = memberRepository.countActive(MemberStatus.ACTIVE);
         Member member = memberRepository.findById(userId).orElseThrow(() -> new RuntimeException("Member Not Found"));
@@ -64,12 +73,19 @@ public class DashboardService {
             totalFinesAmount = (BigDecimal) row[1];
         }
 
+        Page<TransactionSummary> recentSaccoTransactions = transactionSummaryRepository.findAll(
+                PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "createdAt"))
+        );
+
         List<Object[]> loansInfo = loanRepository.getMemberLoansInfo(userId, List.of(LoanStatus.DISBURSED, LoanStatus.DEFAULTED));
         if (loansInfo != null && !loansInfo.isEmpty()) {
             Object[] row = loansInfo.get(0);
             numberOfLoans = ((Number) row[0]).longValue();
             totalLoansAmount = (BigDecimal) row[1];
         }
+
+        SaccoWallet wallet = walletRepository.findById(1L).orElse(new SaccoWallet());
+        BigDecimal paybillBalance = wallet.getMpesaFloatBalance();
 
         boolean isPaid = false;
         List<Object[]> arrearsResults = contributionArrearRepository.getMemberContributionArrear(userId, isPaid);
@@ -82,11 +98,13 @@ public class DashboardService {
 
         return new DashboardSummary(
                 balance,
-                totalActiveLoans,
+                paybillBalance,
+                totalActiveLoansAmount,
                 activeLoans,
                 balance.multiply(BigDecimal.valueOf(0.5)),
                 totalContributions,
                 members,
+                recentSaccoTransactions.getContent(),
                 new PersonalStats(
                         totalFinesAmount,
                         numberOfFines,
