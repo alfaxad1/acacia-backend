@@ -29,10 +29,18 @@ public class DashboardService {
     private final AccountAdjustmentRepository adjustmentRepository;
     private final SaccoWalletRepository walletRepository;
     private final TransactionSummaryRepository transactionSummaryRepository;
+    private final LoanRepaymentRepository loanRepaymentRepository;
 
     public DashboardSummary getDashboardSummary(Long userId) {
         BigDecimal totalContributions = contributionRepository.getSaccoBalance();
-        BigDecimal totalPaidLoans = loanRepository.sumPaidLoans(List.of(LoanStatus.REPAID));
+        BigDecimal totalPaidLoans =
+                loanRepaymentRepository.sumLoanRepayments(
+                        List.of(
+                                LoanStatus.DISBURSED,
+                                LoanStatus.REPAID,
+                                LoanStatus.DEFAULTED
+                        )
+                );
         BigDecimal totalPaidFines = fineRepository.sumTotalPaidFines(FineStatus.PAID);
         BigDecimal totalDebits = adjustmentRepository.sumAdjustments(AdjustmentType.DEBIT);
         BigDecimal totalSurpluses = extraRepository.sumSurpluses(ExtraType.SURPLUS);

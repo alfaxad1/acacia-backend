@@ -1,5 +1,6 @@
 package com.example.acacia.repository;
 
+import com.example.acacia.enums.LoanStatus;
 import com.example.acacia.model.Loan;
 import com.example.acacia.model.LoanRepayment;
 import com.example.acacia.model.Member;
@@ -19,4 +20,11 @@ public interface LoanRepaymentRepository extends JpaRepository<LoanRepayment,Lon
     BigDecimal sumLoanRepayments(@Param("member") Member member);
 
     List<LoanRepayment> findByLoan(Loan loan);
+
+    @Query("""
+    select coalesce(sum(r.amount), 0)
+    from LoanRepayment r
+    where r.loan.status in :statuses
+""")
+    BigDecimal sumLoanRepayments(List<LoanStatus> statuses);
 }

@@ -1,7 +1,7 @@
 package com.example.acacia.repository;
 
 import com.example.acacia.enums.FineStatus;
-import com.example.acacia.enums.FineTyp;
+import com.example.acacia.model.FineType;
 import com.example.acacia.model.Fine;
 import com.example.acacia.model.Member;
 import jakarta.persistence.Tuple;
@@ -21,7 +21,7 @@ public interface FineRepository extends JpaRepository<Fine, Long> {
     int countUnpaid(Member member, FineStatus fineStatus);
 
     @Query("select f.id, m.fullName, f.amount, f.fineDate, " +
-            "f.status, f.type, f.paidDate,m.id " +
+            "f.status, f.type.id, f.type.name, f.paidDate, m.id " +
             "from Fine f join f.member m " +
             "where f.status = :status")
     List<Tuple> findFines(FineStatus status);
@@ -32,7 +32,7 @@ public interface FineRepository extends JpaRepository<Fine, Long> {
     @Query("select count(f), coalesce(sum(f.amount), 0) from Fine f join f.member m where m.id = :userId and f.status = :status")
     List<Object[]> getMemberFines(Long userId, FineStatus status);
 
-    boolean existsByMemberAndTypeAndReferenceId(Member member, FineTyp type, Long referenceId);
+    boolean existsByMemberAndTypeAndReferenceId(Member member, FineType type, Long referenceId);
 
     List<Fine> findByMemberAndStatusAndFineDateBeforeOrderByFineDateAsc(
             Member member,

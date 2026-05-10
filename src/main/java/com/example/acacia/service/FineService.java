@@ -9,7 +9,9 @@ import com.example.acacia.model.Fine;
 import com.example.acacia.model.Member;
 import com.example.acacia.model.SaccoSetups;
 import com.example.acacia.model.Transaction;
+import com.example.acacia.model.FineType;
 import com.example.acacia.repository.FineRepository;
+import com.example.acacia.repository.FineTypeRepository;
 import com.example.acacia.repository.MemberRepository;
 import com.example.acacia.repository.SaccoSetupRepository;
 import com.example.acacia.repository.TransactionRepository;
@@ -30,6 +32,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FineService {
     private final FineRepository fineRepository;
+    private final FineTypeRepository fineTypeRepository;
     private final SaccoSetupRepository setupRepository;
     private final MemberRepository memberRepository;
     private final EmailService emailService;
@@ -41,26 +44,24 @@ public class FineService {
 
     public void recordFine(FineRequest fineRequest) {
         try{
-            SaccoSetups setups = setupRepository.findByStatus(SetupStatus.ACTIVE);
-            BigDecimal amount = fineRequest.getAmount();
-            if(fineRequest.getType().equals(FineTyp.LATE_MEETINGS)){
-                amount = setups.getMeetingLateFineAmount();
-            } else if (fineRequest.getType().equals(FineTyp.MEETING_ABSENTEEISM)) {
-                amount = setups.getMeetingAbsentFineAmount();
-            }
             Member member = memberRepository.findById(fineRequest.getMemberId())
                     .orElseThrow(() -> new ResourceNotFoundException("Member doesn't exist"));
+
+            FineType fineType = fineTypeRepository.findById(fineRequest.getFineTypeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FineType doesn't exist"));
+
+            BigDecimal amount = fineType.getAmount();
 
             Fine fine = Fine.builder()
                     .member(member)
                     .amount(amount)
-                    .type(fineRequest.getType())
+                    .type(fineType)
                     .fineDate(fineRequest.getFineDate())
                     .status(FineStatus.UNPAID)
                     .build();
             fineRepository.save(fine);
 
-            emailService.sendMail(member.getEmail(), "FINE RECORD", "A fine has been recorded for you because of "+ fineRequest.getType());
+            emailService.sendMail(member.getEmail(), "FINE RECORD", "A fine has been recorded for you because of "+ fineType.getName());
 
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -79,7 +80,7 @@ public class FineService {
                     formatPhone.formatPhoneNumber(member.getPhone()),
                     fine.getAmount().toString(),
                     "FINE-" + member.getMemberNumber(),
-                    fine.getType()+"_FINE"
+                    fine.getType().getName()+"_FINE"
             );
 
             Transaction txn = new Transaction();
@@ -120,9 +121,10 @@ public class FineService {
                         .amount(fine.get(2, BigDecimal.class))
                         .date(fine.get(3, LocalDate.class))
                         .status(fine.get(4, FineStatus.class))
-                        .type(fine.get(5, FineTyp.class))
-                        .paidDate(fine.get(6, LocalDate.class))
-                        .memberId(fine.get(7, Long.class))
+                        .fineTypeId(fine.get(5, Long.class))
+                        .fineTypeName(fine.get(6, String.class))
+                        .paidDate(fine.get(7, LocalDate.class))
+                        .memberId(fine.get(8, Long.class))
                         .build();
                 finesList.add(dto);
             }

@@ -1,20 +1,19 @@
 package com.example.acacia.dto;
 
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class FineRequest {
-    private Long memberId;
-    private Long fineTypeId;
-    private LocalDate fineDate;
+public class FineTypeRequest {
+    private String name;
+    private String description;
+    private BigDecimal amount;
+    private BigDecimal percentage;
 }

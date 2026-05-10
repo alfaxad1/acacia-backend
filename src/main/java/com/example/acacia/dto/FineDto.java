@@ -1,7 +1,7 @@
 package com.example.acacia.dto;
 
 import com.example.acacia.enums.FineStatus;
-import com.example.acacia.enums.FineTyp;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,7 +21,8 @@ public class FineDto {
     private BigDecimal amount;
     private LocalDate  date;
     private FineStatus status;
-    private FineTyp type;
+    private Long fineTypeId;
+    private String fineTypeName;
     private LocalDate paidDate;
 
 }

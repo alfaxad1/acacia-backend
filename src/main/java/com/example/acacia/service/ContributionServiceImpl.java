@@ -6,6 +6,7 @@ import com.example.acacia.dto.*;
 import com.example.acacia.enums.*;
 import com.example.acacia.model.*;
 import com.example.acacia.repository.*;
+import com.example.acacia.model.FineType;
 import com.example.acacia.utility.FormatPhone;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.Tuple;
@@ -33,6 +34,7 @@ public class ContributionServiceImpl implements ContributionService {
     private final ExtraRepository extraRepository;
     private final FineRepository fineRepository;
     private final SaccoSetupRepository saccoSetupRepository;
+    private final FineTypeRepository fineTypeRepository;
     private final ContributionRepository contributionRepository;
     private final CreditScoreService creditScoreService;
     private final ContributionArrearRepository contributionArrearRepository;
@@ -145,14 +147,18 @@ public class ContributionServiceImpl implements ContributionService {
         // check if contribution is late and is not recorded
         boolean isLate = paymentDate
                 .isAfter(period.getDeadline());
-        boolean isRecorded = fineRepository.existsByMemberAndTypeAndReferenceId(member, FineTyp.LATE_PAYMENT, period.getId());
+        FineType latePaymentType = fineTypeRepository.findByNameIgnoreCase("LATE_PAYMENT").orElse(null);
+        boolean isRecorded = false;
+        if (latePaymentType != null) {
+            isRecorded = fineRepository.existsByMemberAndTypeAndReferenceId(member, latePaymentType, period.getId());
+        }
 
-        if (isLate && !isRecorded) {
+        if (isLate && !isRecorded && latePaymentType != null) {
             Fine lateFine = Fine.builder()
                     .member(member)
-                    .amount(setups.getLatePaymentFineAmount())
+                    .amount(latePaymentType.getAmount())
                     .status(FineStatus.UNPAID)
-                    .type(FineTyp.LATE_PAYMENT)
+                    .type(latePaymentType)
                     .fineDate(LocalDate.now())
                     .referenceId(period.getId())
                     .build();

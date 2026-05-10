@@ -1,7 +1,7 @@
 package com.example.acacia.model;
 
 import com.example.acacia.enums.FineStatus;
-import com.example.acacia.enums.FineTyp;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,12 +24,9 @@ public class Fine{
     @JoinColumn(name = "member_id")
     private Member member;
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "fine_type_id")
-//    private FineType fineType;
-
-    @Enumerated(EnumType.STRING)
-    private FineTyp type;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "fine_type_id")
+    private FineType type;
 
     @Enumerated(EnumType.STRING)
     private FineStatus status = FineStatus.UNPAID;

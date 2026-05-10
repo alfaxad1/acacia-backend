@@ -3,6 +3,7 @@ package com.example.acacia.service;
 import com.example.acacia.enums.*;
 import com.example.acacia.model.*;
 import com.example.acacia.repository.*;
+import com.example.acacia.model.FineType;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,6 +26,7 @@ public class ContributionPenaltyJobService {
     private final ContributionArrearRepository contributionArrearRepository;
     private final CreditScoreService creditScoreService;
     private final ExtraRepository extraRepository;
+    private final FineTypeRepository fineTypeRepository;
 
     @Scheduled(cron = "0 5 18 ? * SAT") // Saturday 6:05 PM
     @Transactional
@@ -97,15 +99,16 @@ public class ContributionPenaltyJobService {
 
             // 4️⃣ If still balance → fine + arrear
             if (balance.compareTo(BigDecimal.ZERO) > 0) {
-
-                Fine fine = Fine.builder()
-                        .member(member)
-                        .amount(setup.getLatePaymentFineAmount())
-                        .status(FineStatus.UNPAID)
-                        .type(FineTyp.LATE_PAYMENT)
-                        .fineDate(LocalDate.now())
-                        .referenceId(currentPeriod.getId())
-                        .build();
+                FineType latePaymentType = fineTypeRepository.findByNameIgnoreCase("LATE_PAYMENT").orElse(null);
+                if (latePaymentType != null) {
+                    Fine fine = Fine.builder()
+                            .member(member)
+                            .amount(latePaymentType.getAmount())
+                            .status(FineStatus.UNPAID)
+                            .type(latePaymentType)
+                            .fineDate(LocalDate.now())
+                            .referenceId(currentPeriod.getId())
+                            .build();
 
                 Fine savedFine = fineRepository.save(fine);
 
@@ -119,6 +122,7 @@ public class ContributionPenaltyJobService {
                 contributionArrearRepository.save(arrear);
 
                 creditScoreService.updateCreditScore(member);
+                }
             }
         }
     }
