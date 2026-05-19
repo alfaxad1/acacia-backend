@@ -240,6 +240,7 @@ public class MpesaService {
                     BigDecimal c2bFee = totalAMount.multiply(BigDecimal.valueOf(0.0055))
                             .setScale(0, RoundingMode.CEILING);
 
+
                     loan.setC2bFee(c2bFee);
                     loan.setTotalPayable(totalAMount.add(c2bFee));
                     loan.setStatus(LoanStatus.DISBURSED);
