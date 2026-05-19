@@ -24,6 +24,7 @@ import com.example.acacia.dto.*;
 import okhttp3.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.Base64;
@@ -236,7 +237,8 @@ public class MpesaService {
 
                     BigDecimal interest = loan.getInterestAmount();
                     BigDecimal totalAMount = loan.getApprovedAmount().add(interest).add(fee);
-                    BigDecimal c2bFee = totalAMount.multiply(BigDecimal.valueOf(0.0055));
+                    BigDecimal c2bFee = totalAMount.multiply(BigDecimal.valueOf(0.0055))
+                            .setScale(0, RoundingMode.CEILING);
 
                     loan.setC2bFee(c2bFee);
                     loan.setTotalPayable(totalAMount.add(c2bFee));

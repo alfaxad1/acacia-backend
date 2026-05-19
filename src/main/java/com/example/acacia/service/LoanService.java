@@ -261,7 +261,7 @@ public class LoanService {
         }
 
         BigDecimal amountToApply = amount.min(balance);
-        BigDecimal surplus = amount.subtract(amountToApply);
+//        BigDecimal surplus = amount.subtract(amountToApply);
 
         // Record repayment
         LoanRepayment repayment = LoanRepayment.builder()
@@ -273,17 +273,17 @@ public class LoanService {
         loanRepaymentRepository.save(repayment);
 
         // Handle surplus
-        if (surplus.compareTo(BigDecimal.ZERO) > 0) {
-            Extra extras = Extra.builder()
-                    .member(loan.getMember())
-                    .amount(surplus)
-                    .type(ExtraType.SURPLUS)
-                    .status(ExtraStatus.ACTIVE)
-                    .recordedDate(LocalDate.now())
-                    .build();
-
-            extraRepository.save(extras);
-        }
+//        if (surplus.compareTo(BigDecimal.ZERO) > 0) {
+//            Extra extras = Extra.builder()
+//                    .member(loan.getMember())
+//                    .amount(surplus)
+//                    .type(ExtraType.SURPLUS)
+//                    .status(ExtraStatus.ACTIVE)
+//                    .recordedDate(LocalDate.now())
+//                    .build();
+//
+//            extraRepository.save(extras);
+//        }
 
         if (amountToApply.compareTo(balance) == 0) {
             loan.setStatus(LoanStatus.REPAID);
