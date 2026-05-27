@@ -36,10 +36,11 @@ public class ContributionController {
     @PostMapping
     ResponseEntity<?> recordContribution(
             @RequestParam Long periodId,
-            @RequestParam Long memberId
+            @RequestParam Long memberId,
+            @RequestParam(required = false) String phone
     ) throws IOException {
         try{
-            StkPushResponse mpesaResponse = contributionService.initiateContribution(memberId, periodId);
+            StkPushResponse mpesaResponse = contributionService.initiateContribution(memberId, periodId, phone);
 
             Map<String, Object> data = new HashMap<>();
             data.put("checkoutRequestId", mpesaResponse.getCheckoutRequestID());

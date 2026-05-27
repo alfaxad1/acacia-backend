@@ -200,7 +200,7 @@ public class LoanService {
         BigDecimal rate = getTieredRate(balance);
 
         BigDecimal penaltyAmount = balance.multiply(rate)
-                .setScale(2, RoundingMode.HALF_UP);
+                .setScale(0, RoundingMode.CEILING);
 
         loan.setStatus(LoanStatus.DEFAULTED);
         BigDecimal currentTotal = loan.getTotalPayable() != null ? loan.getTotalPayable() : BigDecimal.ZERO;
@@ -340,7 +340,7 @@ public class LoanService {
         }
     }
 
-    public StkPushResponse initiateLoanPayment(Long loanId, BigDecimal amount) {
+    public StkPushResponse initiateLoanPayment(Long loanId, BigDecimal amount, String phone) {
         try{
             if (amount.compareTo(BigDecimal.ZERO) <= 0) {
                 logger.error("Loan not found");
@@ -359,9 +359,14 @@ public class LoanService {
 
             Member member = loan.getMember();
 
+            // Use the caller-supplied phone if provided, otherwise use the member's registered phone
+            String phoneToUse = (phone != null && !phone.isBlank())
+                    ? phone
+                    : member.getPhone();
+
             logger.info("====Attempting stk push====");
             StkPushResponse mpesaResponse = mpesaService.stkPush(
-                    formatPhone.formatPhoneNumber(member.getPhone()),
+                    formatPhone.formatPhoneNumber(phoneToUse),
                     amount.toString(),
                     "LOAN_" + member.getMemberNumber(),
                     "LOAN_" + loan.getId()

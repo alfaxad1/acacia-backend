@@ -65,6 +65,7 @@ public class AuthService {
                             .name(jwtUtil.extractName(token))
                             .email(email)
                             .role(jwtUtil.extractRole(token))
+                            .phone(user.getPhone())
                             .build())
                     .build();
 

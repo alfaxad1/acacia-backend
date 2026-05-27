@@ -76,10 +76,11 @@ public class LoanController {
     @PostMapping("/repay")
     public ResponseEntity<?> repayLoan(
             @RequestParam Long loanId,
-            @RequestParam BigDecimal amount
+            @RequestParam BigDecimal amount,
+            @RequestParam(required = false) String phone
     ) {
         try{
-            StkPushResponse mpesaResponse = loanService.initiateLoanPayment(loanId, amount);
+            StkPushResponse mpesaResponse = loanService.initiateLoanPayment(loanId, amount, phone);
 
             Map<String, Object> data = new HashMap<>();
             data.put("checkoutRequestId", mpesaResponse.getCheckoutRequestID());

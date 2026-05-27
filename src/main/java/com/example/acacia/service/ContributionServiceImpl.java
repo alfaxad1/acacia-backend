@@ -42,7 +42,7 @@ public class ContributionServiceImpl implements ContributionService {
     private final TransactionRepository transactionRepository;
     private final FormatPhone formatPhone;
 
-    public StkPushResponse initiateContribution(  Long memberId, Long periodId) throws IOException {
+    public StkPushResponse initiateContribution(Long memberId, Long periodId, String phone) throws IOException {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member doesn't exist"));
 
@@ -69,10 +69,15 @@ public class ContributionServiceImpl implements ContributionService {
         SaccoSetups setups = saccoSetupRepository.findByStatus(SetupStatus.ACTIVE);
         BigDecimal amount = setups.getContributionAmount();
 
+        // Use the caller-supplied phone if provided, otherwise use the member's registered phone
+        String phoneToUse = (phone != null && !phone.isBlank())
+                ? phone
+                : member.getPhone();
+
         log.info("====Attempting stk push====");
         // 2. Trigger STK Push via MpesaService
         StkPushResponse mpesaResponse = mpesaService.stkPush(
-                formatPhone.formatPhoneNumber(member.getPhone()),
+                formatPhone.formatPhoneNumber(phoneToUse),
                 amount.toString(),
                 "CONTRIBUTION-" + member.getMemberNumber(),
                 "Weekly Contribution"

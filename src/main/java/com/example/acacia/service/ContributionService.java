@@ -13,7 +13,7 @@ public interface ContributionService {
     List<ContributionResponseDTO> getAllContributions(Pageable pageable);
     ContributionResponseDTO getContributionById(Long id);
 
-    StkPushResponse initiateContribution(Long memberId, Long periodId) throws IOException;
+    StkPushResponse initiateContribution(Long memberId, Long periodId, String phone) throws IOException;
 
     Response<List<ContributionArrearDto>> getArrears(Pageable pageable);
 }

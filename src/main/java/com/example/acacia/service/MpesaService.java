@@ -223,7 +223,8 @@ public class MpesaService {
                     SaccoWallet wallet = walletRepository.findById(1L)
                             .orElseThrow(() -> new IllegalStateException("Sacco wallet not configured"));
 
-                    BigDecimal fee = calculateB2CTransactionCost(txn.getAmount());
+                    BigDecimal fee = calculateB2CTransactionCost(txn.getAmount())
+                            .setScale(0, RoundingMode.CEILING);
 
                     wallet.setMpesaFloatBalance(afterBalance);
                     walletRepository.save(wallet);
@@ -266,14 +267,14 @@ public class MpesaService {
         double amt = amount.doubleValue();
 
         if (amt <= 100) return BigDecimal.ZERO;
-        else if (amt <= 500) return BigDecimal.valueOf(7);
-        else if (amt <= 1000) return BigDecimal.valueOf(13);
-        else if (amt <= 1500) return BigDecimal.valueOf(23);
-        else if (amt <= 2500) return BigDecimal.valueOf(33);
-        else if (amt <= 3500) return BigDecimal.valueOf(53);
-        else if (amt <= 5000) return BigDecimal.valueOf(57);
-        else if (amt <= 7500) return BigDecimal.valueOf(78);
-        else if (amt <= 10000) return BigDecimal.valueOf(90);
+        else if (amt <= 500) return BigDecimal.valueOf(9);
+        else if (amt <= 1000) return BigDecimal.valueOf(9);
+        else if (amt <= 1500) return BigDecimal.valueOf(9);
+        else if (amt <= 2500) return BigDecimal.valueOf(9);
+        else if (amt <= 3500) return BigDecimal.valueOf(9);
+        else if (amt <= 5000) return BigDecimal.valueOf(9);
+        else if (amt <= 7500) return BigDecimal.valueOf(9);
+        else if (amt <= 10000) return BigDecimal.valueOf(9);
         else if (amt <= 15000) return BigDecimal.valueOf(100);
         else if (amt <= 20000) return BigDecimal.valueOf(105);
         else if (amt <= 35000) return BigDecimal.valueOf(108);
