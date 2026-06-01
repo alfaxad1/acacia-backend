@@ -27,7 +27,7 @@ jobs:
             mvn clean package -DskipTests
 
             # Restart the service
-            echo "${{ secrets.VPS_PASSWORD }}" | sudo -S systemctl restart acacia.service
+            sudo systemctl restart acacia.service
             
             # Verify status
             sudo systemctl is-active acacia.service
