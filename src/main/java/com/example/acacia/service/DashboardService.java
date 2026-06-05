@@ -49,7 +49,7 @@ public class DashboardService {
         BigDecimal totalCredits = adjustmentRepository.sumAdjustments(AdjustmentType.CREDIT);
 
         BigDecimal inAccount = totalContributions.add(totalPaidLoans).add(totalPaidFines).add(totalDebits).add(totalSurpluses);
-        BigDecimal outOfAccount = loansSum.add(totalCredits);
+        BigDecimal outOfAccount = totalCredits;
 
         BigDecimal balance = inAccount.subtract(outOfAccount);
 
