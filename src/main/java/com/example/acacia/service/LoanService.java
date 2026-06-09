@@ -387,4 +387,16 @@ public class LoanService {
             throw new RuntimeException(e);
         }
     }
+
+    public List<com.example.acacia.dto.LoanRepaymentDto> getLoanRepayments(Long loanId) {
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
+        return loanRepaymentRepository.findByLoan(loan).stream()
+                .map(r -> com.example.acacia.dto.LoanRepaymentDto.builder()
+                        .id(r.getId())
+                        .amount(r.getAmount())
+                        .paymentDate(r.getPaymentDate())
+                        .build())
+                .toList();
+    }
 }

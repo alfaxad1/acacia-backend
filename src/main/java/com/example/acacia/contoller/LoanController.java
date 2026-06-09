@@ -98,5 +98,8 @@ public class LoanController {
         return ResponseEntity.ok().build();
     }
 
-
+    @GetMapping("/{loanId}/repayments")
+    public ResponseEntity<List<com.example.acacia.dto.LoanRepaymentDto>> getLoanRepayments(@PathVariable Long loanId) {
+        return ResponseEntity.ok(loanService.getLoanRepayments(loanId));
+    }
 }
