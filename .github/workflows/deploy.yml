@@ -73,10 +73,10 @@ jobs:
             chmod 700 acacia.jar
             
             echo "Restarting acacia.service..."
-            sudo systemctl restart acacia.service
+            echo "${{ secrets.VPS_PASSWORD }}" | sudo -S systemctl restart acacia.service
             
             echo "Waiting for Liquibase migrations to initialize..."
             sleep 5
             
-            sudo systemctl is-active acacia.service
+            echo "${{ secrets.VPS_PASSWORD }}" | sudo -S systemctl is-active acacia.service
             echo "Deployment successful!"
