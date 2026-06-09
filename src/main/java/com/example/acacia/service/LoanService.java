@@ -293,6 +293,9 @@ public class LoanService {
 
         //equityService.recalculateAllEquity();
         creditScoreService.updateCreditScore(loan.getMember());
+        String subject = "LOAN PAYMENT BY " + loan.getMember().getFullName().toUpperCase();
+        String content = loan.getMember().getFullName() + " has paid" + amountToApply + " towards their loan.";
+        emailService.sendMail("eileenbarbra6@gmail.com", subject, content);
 
     }
 
