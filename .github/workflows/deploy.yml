@@ -75,8 +75,17 @@ jobs:
             echo "Restarting acacia.service..."
             echo "${{ secrets.VPS_PASSWORD }}" | sudo -S systemctl restart acacia.service
             
-            echo "Waiting for Liquibase migrations to initialize..."
-            sleep 5
+            echo "Waiting for service to become active..."
+            for i in {1..12}; do
+              STATUS=$(systemctl is-active acacia.service || true)
+              if [ "$STATUS" = "active" ]; then
+                echo "Service is active and deployment successful!"
+                exit 0
+              fi
+              echo "Status: $STATUS. Waiting 5s..."
+              sleep 5
+            done
             
-            echo "${{ secrets.VPS_PASSWORD }}" | sudo -S systemctl is-active acacia.service
-            echo "Deployment successful!"
+            echo "ERROR: Service did not become active in time."
+            systemctl status acacia.service || true
+            exit 1
