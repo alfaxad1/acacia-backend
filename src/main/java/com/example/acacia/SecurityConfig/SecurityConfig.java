@@ -46,6 +46,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(customAccessDeniedHandler)        // 403
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/stk/**").permitAll()
                         .requestMatchers("/api/v1/c2b/**").permitAll()
@@ -81,6 +82,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
+        cfg.setAllowedOrigins(List.of("https://acaciasacco.netlify.app", "http://localhost:5173", "http://localhost:4040"));
         cfg.setAllowedOriginPatterns(List.of("*"));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         cfg.setAllowedHeaders(List.of("*"));
