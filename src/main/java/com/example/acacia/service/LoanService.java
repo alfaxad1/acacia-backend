@@ -164,6 +164,8 @@ public class LoanService {
         List<Loan> overdueLoans = loanRepository.findByStatusInAndDueDateBefore(
                 List.of(LoanStatus.DISBURSED, LoanStatus.DEFAULTED), today);
 
+        logger.info("OverdueLoans: {} ", overdueLoans.size());
+
         for (Loan loan : overdueLoans) {
             if (shouldApplyPenalty(loan, today)) {
                 applyPenaltyAndMarkDefault(loan, today);
