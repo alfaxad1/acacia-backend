@@ -37,6 +37,7 @@ public class ContributionPeriodServiceImpl implements ContributionPeriodService 
     private final ContributionPeriodRepository contributionPeriodRepository;
     private final SaccoSetupRepository saccoSetupRepository;
     private final ContributionRepository contributionRepository;
+    private final com.example.acacia.repository.MemberRepository memberRepository;
 
 
     @Override
@@ -49,6 +50,10 @@ public class ContributionPeriodServiceImpl implements ContributionPeriodService 
         Map<Long, List<Contribution>> contributionsByPeriodId = allContributions.stream()
                 .collect(Collectors.groupingBy(c -> c.getPeriod().getId()));
 
+        // We assume all periods expect the same active members for historical simplicity,
+        // or just calculate based on current active members for the target display.
+        long activeMembersCount = memberRepository.countActive(com.example.acacia.enums.MemberStatus.ACTIVE);
+        
         List<ContributionPeriodDto> periodDtos = periods.stream().map(p -> {
             List<Contribution> contributionsForThisPeriod = contributionsByPeriodId.getOrDefault(p.getId(), Collections.emptyList());
 
@@ -67,6 +72,7 @@ public class ContributionPeriodServiceImpl implements ContributionPeriodService 
                     .date(p.getDate())
                     .deadline(p.getDeadline())
                     .amountRequired(p.getAmountRequired())
+                    .totalTarget(p.getAmountRequired().multiply(java.math.BigDecimal.valueOf(activeMembersCount)))
                     .contributions(contributionDtos)
                     .build();
         }).collect(Collectors.toList());

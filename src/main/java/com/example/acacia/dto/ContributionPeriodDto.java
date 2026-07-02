@@ -19,5 +19,6 @@ public class ContributionPeriodDto {
     private LocalDate date;
     private LocalDateTime deadline;
     private BigDecimal amountRequired;
+    private BigDecimal totalTarget;
     private List<ContributionDto> contributions;
 }
