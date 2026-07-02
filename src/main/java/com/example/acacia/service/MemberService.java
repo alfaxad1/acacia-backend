@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface MemberService {
     void addEditMember(Member member);
+    void deleteMember(Long id);
 
     List<Member> getMembers();
 

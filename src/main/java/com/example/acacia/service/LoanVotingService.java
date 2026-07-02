@@ -43,7 +43,7 @@ public class LoanVotingService {
         Member member = committeeRepository.findById(committeeMemberId)
                 .orElseThrow(() -> new ResourceNotFoundException("Committee member not found"));
 
-        if (member.getStatus() ==  MemberStatus.EXITED || member.getStatus() ==  MemberStatus.SUSPENDED) {
+        if (member.getStatus() ==  MemberStatus.EXITED || member.getStatus() ==  MemberStatus.INACTIVE) {
             throw new IllegalStateException("Inactive committee member");
         }
 

@@ -29,7 +29,12 @@ public class MemberServiceImpl implements MemberService {
             member1.setEmail(member.getEmail());
             member1.setPhone(member.getPhone());
             member1.setJoinDate(member.getJoinDate());
-            member1.setStatus(member.getStatus());
+            if (member.getRole() != null) {
+                member1.setRole(member.getRole());
+            }
+            if (member.getStatus() != null) {
+                member1.setStatus(member.getStatus());
+            }
             memberRepository.save(member1);
         }
     }
@@ -41,6 +46,14 @@ public class MemberServiceImpl implements MemberService {
         }catch (Exception e){
             throw new RuntimeException(e.getMessage());
         }
+    }
+
+    @Override
+    public void deleteMember(Long id) {
+        Member member = memberRepository.findById(id).orElseThrow(() -> new RuntimeException("Member not found"));
+        member.setActive(false);
+        member.setStatus(com.example.acacia.enums.MemberStatus.INACTIVE);
+        memberRepository.save(member);
     }
 
 }

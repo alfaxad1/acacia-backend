@@ -68,34 +68,32 @@ public class FineService {
         }
     }
 
-    public StkPushResponse initiateFinePayment(Long fineId) throws IOException {
-        try{
-            Fine fine = fineRepository.findById(fineId).orElseThrow(() -> new ResourceNotFoundException("Fine doesn't exist"));
-            logger.info("FIne found: {}", fine.getId());
+    public StkPushResponse initiateFinePayment(Long fineId, String phone) throws IOException {
+        Fine fine = fineRepository.findById(fineId).orElseThrow(() -> new ResourceNotFoundException("Fine doesn't exist"));
+        logger.info("FIne found: {}", fine.getId());
 
-            Member member = fine.getMember();
+        Member member = fine.getMember();
 
-            logger.info("====Attempting stk push====");
-            StkPushResponse mpesaResponse = mpesaService.stkPush(
-                    formatPhone.formatPhoneNumber(member.getPhone()),
-                    fine.getAmount().toString(),
-                    "FINE-" + member.getMemberNumber(),
-                    fine.getType().getName()+"_FINE"
-            );
+        String phoneNumber = (phone != null && !phone.trim().isEmpty()) ? phone : member.getPhone();
 
-            Transaction txn = new Transaction();
-            txn.setCheckoutRequestID(mpesaResponse.getCheckoutRequestID());
-            txn.setMember(member);
-            txn.setAmount(fine.getAmount());
-            txn.setFine(fine);
-            txn.setType(TransactionType.FINE);
-            txn.setStatus(TransactionStatus.PENDING);
-            transactionRepository.save(txn);
+        logger.info("====Attempting stk push====");
+        StkPushResponse mpesaResponse = mpesaService.stkPush(
+                formatPhone.formatPhoneNumber(phoneNumber),
+                fine.getAmount().toString(),
+                "FINE-" + member.getMemberNumber(),
+                fine.getType().getName()+"_FINE"
+        );
 
-            return mpesaResponse;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        Transaction txn = new Transaction();
+        txn.setCheckoutRequestID(mpesaResponse.getCheckoutRequestID());
+        txn.setMember(member);
+        txn.setAmount(fine.getAmount());
+        txn.setFine(fine);
+        txn.setType(TransactionType.FINE);
+        txn.setStatus(TransactionStatus.PENDING);
+        transactionRepository.save(txn);
+
+        return mpesaResponse;
     }
 
     public void settleFine(Fine fine) {

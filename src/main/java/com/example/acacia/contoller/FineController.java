@@ -35,9 +35,9 @@ public class FineController {
     }
 
     @PostMapping("/settle")
-    public ResponseEntity<?> settleFine(@RequestParam Long fineId) throws IOException {
+    public ResponseEntity<?> settleFine(@RequestParam Long fineId, @RequestParam(required = false) String phone) throws IOException {
         try{
-            StkPushResponse mpesaResponse =  fineService.initiateFinePayment(fineId);
+            StkPushResponse mpesaResponse =  fineService.initiateFinePayment(fineId, phone);
 
             Map<String, Object> data = new HashMap<>();
             data.put("checkoutRequestId", mpesaResponse.getCheckoutRequestID());

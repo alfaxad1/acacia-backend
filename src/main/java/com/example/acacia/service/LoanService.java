@@ -121,6 +121,8 @@ public class LoanService {
             loan.setStatus(LoanStatus.APPROVED);
             loan.setInterestAmount(interest);
             loan.setApprovalDate(LocalDate.now());
+            loan.setDisbursementDate(LocalDate.now());
+            loan.setDueDate(LocalDate.now().plusDays(30));
 
             return loanRepository.save(loan);
         } catch (Exception e) {
@@ -228,14 +230,14 @@ public class LoanService {
     }
 
     private BigDecimal getTieredRate(BigDecimal amount) {
-        if (amount.compareTo(new BigDecimal("3000")) <= 0) {
-            return new BigDecimal("0.05"); // 5%
-        }
-        if (amount.compareTo(new BigDecimal("6000")) <= 0) {
+        if (amount.compareTo(new BigDecimal("5000")) <= 0) {
             return new BigDecimal("0.03"); // 3%
         }
         if (amount.compareTo(new BigDecimal("10000")) <= 0) {
-            return new BigDecimal("0.02"); // 2%
+            return new BigDecimal("0.04"); // 4%
+        }
+        if (amount.compareTo(new BigDecimal("15000")) <= 0) {
+            return new BigDecimal("0.05"); // 5%
         }
         return BigDecimal.ZERO;
     }

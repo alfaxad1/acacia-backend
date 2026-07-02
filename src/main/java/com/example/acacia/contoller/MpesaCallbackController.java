@@ -22,6 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import com.example.acacia.service.SseService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,6 +40,7 @@ public class MpesaCallbackController {
     private final FineService fineService;
     private final LoanService loanService;
     private final B2cTransactionsRepository b2cTransactionsRepository;
+    private final SseService sseService;
 
     private static final Logger logger = LoggerFactory.getLogger(MpesaCallbackController.class);
 
@@ -81,7 +84,16 @@ public class MpesaCallbackController {
         }
 
         transactionRepository.save(txn);
+        
+        // Notify any waiting SSE clients
+        sseService.notifyClient(checkoutId, txn.getStatus());
+        
         return ResponseEntity.ok(Map.of("ResultCode", 0, "ResultDesc", "Success"));
+    }
+
+    @GetMapping("/stk/stream/{checkoutId}")
+    public SseEmitter streamStatus(@PathVariable String checkoutId) {
+        return sseService.subscribe(checkoutId);
     }
 
     @GetMapping("/transaction-status/{checkoutRequestId}")

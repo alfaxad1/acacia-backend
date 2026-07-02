@@ -27,6 +27,19 @@ public class MemberController {
         return ResponseHandler.responseBuilder("member created successfully", HttpStatus.CREATED, null);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateMember(@PathVariable Long id, @RequestBody Member member){
+        member.setId(id);
+        memberService.addEditMember(member);
+        return ResponseHandler.responseBuilder("member updated successfully", HttpStatus.OK, null);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteMember(@PathVariable Long id){
+        memberService.deleteMember(id);
+        return ResponseHandler.responseBuilder("member deleted successfully", HttpStatus.OK, null);
+    }
+
     @GetMapping
     public ResponseEntity<?> getMembers(){
         List<Member> members = memberService.getMembers();
