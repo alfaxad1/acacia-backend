@@ -307,24 +307,18 @@ public class MpesaService {
     }
 
     private BigDecimal calculateB2CTransactionCost(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Invalid transaction amount");
+        }
 
         double amt = amount.doubleValue();
 
         if (amt <= 100) return BigDecimal.ZERO;
-        else if (amt <= 500) return BigDecimal.valueOf(9);
-        else if (amt <= 1000) return BigDecimal.valueOf(9);
-        else if (amt <= 1500) return BigDecimal.valueOf(9);
-        else if (amt <= 2500) return BigDecimal.valueOf(9);
-        else if (amt <= 3500) return BigDecimal.valueOf(9);
+        else if (amt <= 1500) return BigDecimal.valueOf(5);
         else if (amt <= 5000) return BigDecimal.valueOf(9);
-        else if (amt <= 7500) return BigDecimal.valueOf(9);
-        else if (amt <= 10000) return BigDecimal.valueOf(9);
-        else if (amt <= 15000) return BigDecimal.valueOf(100);
-        else if (amt <= 20000) return BigDecimal.valueOf(105);
-        else if (amt <= 35000) return BigDecimal.valueOf(108);
-        else if (amt <= 50000) return BigDecimal.valueOf(108);
-        else if (amt <= 250000) return BigDecimal.valueOf(108);
+        else if (amt <= 20000) return BigDecimal.valueOf(11);
+        else if (amt <= 250000) return BigDecimal.valueOf(13);
 
-        throw new IllegalArgumentException("Amount exceeds M-PESA transaction limit");
+        throw new IllegalArgumentException("Amount exceeds maximum M-PESA B2C transaction limit of 250,000");
     }
 }
